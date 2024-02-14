@@ -132,7 +132,7 @@
 
 - name: Copy nf_conntrack parameters script
   copy:
-    dest: /etc/init.d/nf_conntrack-params.sh
+    dest: /etc/iptables/nf_conntrack-params.sh
     content: |
       sysctl -w net/netfilter/nf_conntrack_tcp_loose=0
       sysctl -w net/netfilter/nf_conntrack_max=2000000
@@ -177,7 +177,7 @@
 - name: Copy disable-transparent-huge-pages
   copy:
     src: ../files/disable-transparent-huge-pages
-    dest: /etc/init.d/disable-transparent-huge-pages
+    dest: /etc/disable-transparent-huge-pages
     owner: root
     group: root
     mode: 0744

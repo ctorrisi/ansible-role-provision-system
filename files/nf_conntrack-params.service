@@ -4,7 +4,7 @@ Description=Set nf_conntrack params
 [Service]
 Type=oneshot
 After=systemd-modules-load.service
-ExecStart=/bin/bash /etc/init.d/nf_conntrack-params.sh
+ExecStart=/bin/bash /etc/iptables/nf_conntrack-params.sh
 
 [Install]
 WantedBy=multi-user.target
