@@ -29,6 +29,12 @@
     path: /etc/ssh/ssh_host_ed25519_key
     type: ed25519
 
+- name: Enable and start sshd.service
+  systemd:
+    name: sshd
+    state: started
+    enabled: yes
+
 - name: Install packages
   pacman:
     update_cache: true
