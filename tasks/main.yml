@@ -1,0 +1,246 @@
+---
+- name: Set timezone to UTC
+  timezone:
+    name: UTC
+
+- name: Set timedatectl set-ntp true
+  command: /usr/bin/timedatectl set-ntp true
+
+- name: Enable and start ntpd.service
+  systemd:
+    name: ntpd
+    state: started
+    enabled: yes
+
+- name: Generate OpenSSH ECDSA Keypair
+  openssh_keypair:
+    path: /etc/ssh/ssh_host_ecdsa_key
+    type: ecdsa
+
+- name: Generate OpenSSH ED25519 Keypair
+  openssh_keypair:
+    path: /etc/ssh/ssh_host_ed25519_key
+    type: ed25519
+
+- name: Install packages
+  pacman:
+    update_cache: true
+    state: latest
+    name:
+      - salt
+      - docker
+      - consul
+      - nomad
+      - ipset
+
+- name: Limit the total size of journald logs
+  lineinfile:
+    dest: /etc/systemd/journald.conf
+    regexp: ^SystemMaxUse=
+    line: SystemMaxUse={{ systemd_journal_system_max_use }}
+
+- name: Enable and start systemd-journald.service
+  systemd:
+    name: systemd-journald
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Create systemd-resolved.conf.d configuration directory
+  file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Copy systemd-resolved configuration for consul domains
+  template:
+    src: ../files/resolved-consul.conf.j2
+    dest: /etc/systemd/resolved.conf.d/consul.conf
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable and start systemd-resolved.service
+  systemd:
+    name: systemd-resolved
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Manage swap file entry in fstab.
+  mount:
+    name: none
+    src: "{{ swap_file_path }}"
+    fstype: swap
+    opts: sw
+    state: present
+
+- name: Ensure swap file exists.
+  command: >
+    {{ swap_file_create_command }}
+    creates='{{ swap_file_path }}'
+  register: swap_file_create
+
+- name: Set permissions on swap file.
+  file:
+    path: "{{ swap_file_path }}"
+    owner: root
+    group: root
+    mode: 0600
+
+- name: Make swap file if necessary.
+  command: mkswap {{ swap_file_path }}
+  when: swap_file_create is changed
+  register: mkswap_result
+
+- name: Run swapon on the swap file.
+  command: swapon {{ swap_file_path }}
+  when:
+    - mkswap_result is changed
+
+- name: Add the nf_conntrack module
+  community.general.modprobe:
+    name: nf_conntrack
+    state: present
+
+- name: Set nf_conntrack parameters
+  copy:
+    dest: /etc/modprobe.d/99-nf_conntrack.conf
+    content: |
+      options nf_conntrack hashsize=2500000
+
+- name: Load nf_conntrack module
+  copy:
+    dest: /etc/modules-load.d/nf_conntrack.conf
+    content: |
+      nf_conntrack
+
+- name: Enable and start systemd-modules-load.service
+  systemd:
+    name: systemd-modules-load
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Copy nf_conntrack parameters script
+  copy:
+    dest: /etc/init.d/nf_conntrack-params.sh
+    content: |
+      sysctl -w net/netfilter/nf_conntrack_tcp_loose=0
+      sysctl -w net/netfilter/nf_conntrack_max=2000000
+      sysctl -p
+    mode: 0744
+
+- name: Copy nf_conntrack parameters service
+  copy:
+    src: ../files/nf_conntrack-params.service
+    dest: /etc/systemd/system/nf_conntrack-params.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable and start nf_conntrack-params.service
+  systemd:
+    name: nf_conntrack-params
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Copy 99-sysctl.conf
+  copy:
+    src: ../files/99-sysctl.conf
+    dest: /etc/sysctl.d/99-sysctl.conf
+
+- name: Reload sysctl
+  command: "{{ item }}"
+  loop:
+    - sysctl -w net.ipv4.route.flush=1
+    - sysctl -w net.ipv6.route.flush=1
+    - sysctl -p
+
+- name: Create disable-transparent-huge-pages.service
+  copy:
+    src: ../files/disable-transparent-huge-pages.service
+    dest: /etc/systemd/system/disable-transparent-huge-pages.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copy disable-transparent-huge-pages
+  copy:
+    src: ../files/disable-transparent-huge-pages
+    dest: /etc/init.d/disable-transparent-huge-pages
+    owner: root
+    group: root
+    mode: 0744
+
+- name: Enable and start disable-transparent-huge-pages service
+  systemd:
+    name: disable-transparent-huge-pages
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Create iptables-startup.service
+  copy:
+    src: ../files/itables-startup.service
+    dest: /etc/systemd/system/iptables-startup.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copy iptables-startup.sh
+  copy:
+    src: ../files/iptables-startup.sh
+    dest: /etc/iptables/iptables-startup.sh
+    owner: root
+    group: root
+    mode: 0744
+
+- name: Enable and start iptables-startup service
+  systemd:
+    name: iptables-startup.service
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Create ipset-blacklist configuration directory
+  file:
+    path: /etc/ipset-blacklist
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Copy range2cidr.awk
+  copy:
+    src: ../files/range2cidr.awk
+    dest: /etc/ipset-blacklist/range2cidr.awk
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Create ipset-blacklist.service
+  copy:
+    src: ../files/ipset-blacklist.service
+    dest: /etc/systemd/system/ipset-blacklist.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copy ipset-blacklist.sh
+  copy:
+    src: ../files/ipset-blacklist.sh
+    dest: /etc/init.d/ipset-blacklist.sh
+    owner: root
+    group: root
+    mode: 0744
+
+- name: Enable and start ipset-blacklist service
+  systemd:
+    name: ipset-blacklist.service
+    state: restarted
+    enabled: yes
+    daemon_reload: yes

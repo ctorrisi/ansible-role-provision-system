@@ -1,0 +1,13 @@
+[Unit]
+Description=IP sets for iptables
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Service]
+ExecStart=/bin/bash /etc/init.d/ipset-blacklist.sh
+
+[Install]
+WantedBy=timers.target
