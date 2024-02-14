@@ -12,6 +12,12 @@
     state: started
     enabled: yes
 
+- name: Disable GRUB splash
+  lineinfile:
+    path: /etc/default/grub
+    regexp: ^GRUB_CMDLINE_LINUX_DEFAULT=
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT=""' 
+
 - name: Generate OpenSSH ECDSA Keypair
   openssh_keypair:
     path: /etc/ssh/ssh_host_ecdsa_key
