@@ -191,7 +191,7 @@
 
 - name: Create iptables-startup.service
   copy:
-    src: ../files/itables-startup.service
+    src: ../files/iptables-startup.service
     dest: /etc/systemd/system/iptables-startup.service
     owner: root
     group: root
