@@ -239,7 +239,7 @@
 - name: Copy ipset-blacklist.sh
   copy:
     src: ../files/ipset-blacklist.sh
-    dest: /etc/init.d/ipset-blacklist.sh
+    dest: /etc/iptables/ipset-blacklist.sh
     owner: root
     group: root
     mode: 0744
@@ -250,3 +250,4 @@
     state: restarted
     enabled: yes
     daemon_reload: yes
+

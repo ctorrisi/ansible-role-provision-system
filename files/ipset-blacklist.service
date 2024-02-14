@@ -7,7 +7,7 @@ RandomizedDelaySec=1h
 Persistent=true
 
 [Service]
-ExecStart=/bin/bash /etc/init.d/ipset-blacklist.sh
+ExecStart=/bin/bash /etc/iptables/ipset-blacklist.sh
 
 [Install]
 WantedBy=timers.target
