@@ -42,5 +42,6 @@ iptables -A INPUT -p tcp -m multiport --dports 60022,443,8443 -m conntrack --cts
 iptables -A INPUT -p tcp -m conntrack --ctstate INVALID -j DROP
 iptables -A INPUT -p tcp -m multiport --dports 60022,443,8443 -j ACCEPT
 iptables -A INPUT -j DROP
+iptables -N port-scanning
 iptables -A port-scanning -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m limit --limit 1/sec --limit-burst 2 -j RETURN
 iptables -A port-scanning -j DROP
