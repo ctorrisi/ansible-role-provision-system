@@ -199,13 +199,10 @@
 - name: Configure iptables rules.v4
   copy:
     src: ../files/iptables_rules.v4
-    dest:  /etc/iptables/rules.v4
+    dest:  /etc/iptables/iptables.rules
     owner: root
     group: root
     mode: 0644
-
-- name: Restore iptables
-  shell: iptables-restore < /etc/iptables/rules.v4
 
 - name: Enable and start iptables.service
   systemd:
