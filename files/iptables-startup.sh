@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+sleep 5
+
 iptables -t mangle -A PREROUTING -i lo -j ACCEPT
 iptables -t mangle -A PREROUTING -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP
 iptables -t mangle -A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -j DROP

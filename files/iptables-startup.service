@@ -1,7 +1,7 @@
 [Unit]
 Description=Loads iptables on startup
 ConditionFileIsExecutable=/etc/iptables/iptables-startup.sh
-After=network.target
+After=network-online.target
 
 [Service]
 Type=forking
