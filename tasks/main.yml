@@ -207,6 +207,13 @@
 - name: Restore iptables
   shell: iptables-restore < /etc/iptables/rules.v4
 
+- name: Enable and start iptables.service
+  systemd:
+    name: iptables
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
 - name: Create iptables-startup.service
   copy:
     src: ../files/iptables-startup.service
@@ -223,10 +230,10 @@
     group: root
     mode: 0744
 
-- name: Enable and start iptables-startup service
+- name: Enable and start iptables-startup.service
   systemd:
     name: iptables-startup.service
-    state: restarted
+    state: stopped
     enabled: yes
     daemon_reload: yes
 
