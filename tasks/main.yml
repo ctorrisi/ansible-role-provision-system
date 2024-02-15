@@ -165,24 +165,44 @@
     name: iptables
     state: present
 
-- name: Enable and start iptables.service
-  systemd:
-    name: iptables
-    state: started
-    enabled: yes
+- name: Create iptables directory
+  file:
+    path: /etc/iptables
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
 
-- name: Configure iptables rules.v4
+- name: Create iptables-startup.service
   copy:
-    src: ../files/iptables_rules.v4
+    src: ../files/iptables.service
+    dest: /etc/systemd/system/iptables.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Create iptables-startup@.service
+  copy:
+    src: ../files/iptables.service
+    dest: /etc/systemd/system/iptables@.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copy iptables.rules
+  copy:
+    src: ../files/iptables.rules
     dest:  /etc/iptables/iptables.rules
     owner: root
     group: root
     mode: 0644
 
-- name: Restart iptables.service
+- name: Enable and start iptables.service
   systemd:
     name: iptables
-    state: restarted
+    state: started
+    enabled: yes
+    daemon_reload: yes
 
 - name: Create iptables-startup.service
   copy:
