@@ -16,7 +16,7 @@
     content: |
      SystemMaxUse={{ systemd_journal_system_max_use }}
 
-- name: Enable and start systemd-journald.service
+- name: Restart systemd-journald.service
   systemd:
     name: systemd-journald
     state: restarted
@@ -83,7 +83,7 @@
   when: sysctl is changed
 
 - name: Add the nf_conntrack module
-  community.general.modprobe:
+  modprobe:
     name: nf_conntrack
     state: present
 
@@ -165,6 +165,12 @@
     name: iptables
     state: present
 
+- name: Enable and start iptables.service
+  systemd:
+    name: iptables
+    state: started
+    enabled: yes
+
 - name: Configure iptables rules.v4
   copy:
     src: ../files/iptables_rules.v4
@@ -173,12 +179,10 @@
     group: root
     mode: 0644
 
-- name: Enable and start iptables.service
+- name: Restart iptables.service
   systemd:
     name: iptables
-    state: started
-    enabled: yes
-    daemon_reload: yes
+    state: restarted
 
 - name: Create iptables-startup.service
   copy:
