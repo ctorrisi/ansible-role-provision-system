@@ -14,11 +14,9 @@ ConditionPathExists=/etc/iptables/
 Documentation=man:iptables man:iptables-restore
 
 [Service]
-Environment=IPTABLES_RULES=/etc/iptables/base.rules
-
 Type=oneshot
-ExecStart=/sbin/iptables-restore < $IPTABLES_RULES
-ExecReload=/sbin/iptables-restore < $IPTABLES_RULES
+ExecStart=/sbin/iptables-restore < /etc/iptables/base.rules
+ExecReload=/sbin/iptables-restore < /etc/iptables/base.rules
 ExecStop=/sbin/iptables-restore < /etc/iptables/empty.rules
 RemainAfterExit=yes
 
