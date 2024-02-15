@@ -190,10 +190,9 @@
     group: root
     mode: 0644
 
-- name: Enable and start iptables.service
+- name: Enable iptables.service
   systemd:
     name: iptables
-    state: started
     enabled: yes
     daemon_reload: yes
 
