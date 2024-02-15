@@ -1,4 +1,17 @@
 ---
+- name: Add admin user to sudo group
+  user:
+    name: admin
+    groups: sudo
+    append: yes
+
+- name: Add sudoers rules for admin
+  copy:
+    dest: /etc/sudoers.d/admin
+    content: |
+      admin ALL=(ALL) NOPASSWD:ALL
+    mode: 0600
+
 - name: Disable GRUB splash
   lineinfile:
     path: /etc/default/grub
