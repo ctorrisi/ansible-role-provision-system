@@ -10,7 +10,7 @@
     dest: /etc/sudoers.d/wheel_nopasswd
     mode: 0440
 
-- name: Add admin user to sudo group
+- name: Add admin user to wheel group
   user:
     name: admin
     groups: wheel
