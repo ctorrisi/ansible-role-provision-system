@@ -17,9 +17,9 @@ Documentation=man:iptables man:iptables-restore
 Environment=IPTABLES_RULES=/etc/iptables/base.rules
 
 Type=oneshot
-ExecStart=/sbin/iptables-restore -v -n $IPTABLES_RULES
-ExecReload=/sbin/iptables-restore -v -n $IPTABLES_RULES
-ExecStop=/sbin/iptables-restore -v -n /etc/iptables/empty.rules
+ExecStart=/sbin/iptables-restore < $IPTABLES_RULES
+ExecReload=/sbin/iptables-restore < $IPTABLES_RULES
+ExecStop=/sbin/iptables-restore < /etc/iptables/empty.rules
 RemainAfterExit=yes
 
 [Install]
