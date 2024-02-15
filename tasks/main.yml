@@ -160,6 +160,11 @@
     enabled: yes
     daemon_reload: yes
 
+- name: Install iptables
+  zypper:
+    name: iptables
+    state: present
+
 - name: Configure iptables rules.v4
   copy:
     src: ../files/iptables_rules.v4
