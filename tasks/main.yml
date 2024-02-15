@@ -10,22 +10,6 @@
   command: grub2-mkconfig
   when: grub is changed
 
-- name: Generate OpenSSH ECDSA Keypair
-  openssh_keypair:
-    path: /etc/ssh/ssh_host_ecdsa_key
-    type: ecdsa
-
-- name: Generate OpenSSH ED25519 Keypair
-  openssh_keypair:
-    path: /etc/ssh/ssh_host_ed25519_key
-    type: ed25519
-
-- name: Enable and start sshd.service
-  systemd:
-    name: sshd
-    state: started
-    enabled: yes
-
 - name: Limit the total size of journald logs
   lineinfile:
     dest: /etc/systemd/journald.conf
