@@ -27,18 +27,6 @@
   command: grub2-mkconfig
   when: grub is changed
 
-- name: Limit the total size of journald logs
-  copy:
-    dest: /etc/systemd/journald.conf.d/99-journald.conf
-    content: |
-     SystemMaxUse={{ systemd_journal_system_max_use }}
-
-- name: Restart systemd-journald.service
-  systemd:
-    name: systemd-journald
-    state: restarted
-    enabled: yes
-
 - name: Enable and start systemd-resolved.service
   systemd:
     name: systemd-resolved
