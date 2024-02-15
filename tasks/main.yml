@@ -1,31 +1,9 @@
 ---
-- name: Ensure wheel group exists
-  group:
-    name: wheel
-    state: present
-
-- name: Add wheel group
+- name: Add admin to sudoers
   copy:
-    content: '%wheel ALL=(ALL:ALL) NOPASSWD:ALL'
-    dest: /etc/sudoers.d/wheel_nopasswd
-    mode: 0440
-
-- name: Add admin user to wheel group
-  user:
-    name: admin
-    groups: wheel
-    append: yes
-
-- name: Disable GRUB splash
-  lineinfile:
-    path: /etc/default/grub
-    regexp: ^GRUB_CMDLINE_LINUX_DEFAULT=
-    line: 'GRUB_CMDLINE_LINUX_DEFAULT="mitigations=auto quiet security=apparmor"'
-  register: grub
-
-- name: Regenerate GRUB
-  command: grub2-mkconfig
-  when: grub is changed
+    content: 'admin ALL=(ALL:ALL) NOPASSWD:ALL'
+    dest: /etc/sudoers.d/admin
+    mode: 0400
 
 - name: Enable and start systemd-resolved.service
   systemd:
@@ -165,9 +143,11 @@
     enabled: yes
     daemon_reload: yes
 
-- name: Install iptables
+- name: Install iptables and ipset
   zypper:
-    name: iptables
+    name:
+      - iptables
+      - ipset
     state: present
 
 - name: Create iptables directory
