@@ -37,7 +37,6 @@
     name: systemd-journald
     state: restarted
     enabled: yes
-    daemon_reload: yes
 
 - name: Enable and start systemd-resolved.service
   systemd:
