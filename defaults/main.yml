@@ -2,6 +2,6 @@
 swap_file_path: /swapfile
 swap_file_size_mb: '2048'
 swap_file_state: present
-swap_file_create_command: "btrfs filesystem mkswapfile --size {{ swap_file_size_mb }} {{ swap_file_path }}"
+swap_file_create_command: "btrfs filesystem mkswapfile --size {{ swap_file_size_mb }}M {{ swap_file_path }}"
 systemd_journal_system_max_use: 50M
 resolved_consul_domain: consul
