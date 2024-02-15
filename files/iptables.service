@@ -6,8 +6,6 @@ ConditionPathExists=/etc/iptables/
 [Service]
 Type=oneshot
 ExecStart=/sbin/iptables-restore /etc/iptables/base.rules
-ExecReload=/sbin/iptables-restore /etc/iptables/base.rules
-ExecStop=/sbin/iptables-restore /etc/iptables/empty.rules
 RemainAfterExit=yes
 
 [Install]
