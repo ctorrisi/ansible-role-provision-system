@@ -182,14 +182,6 @@
     group: root
     mode: 0644
 
-- name: Copy iptables-empty.rules
-  copy:
-    src: ../files/iptables-empty.rules
-    dest:  /etc/iptables/empty.rules
-    owner: root
-    group: root
-    mode: 0644
-
 - name: Enable iptables.service
   systemd:
     name: iptables
