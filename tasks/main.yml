@@ -72,6 +72,16 @@
   when:
     - mkswap_result is changed
 
+- name: Copy 99-sysctl.conf
+  copy:
+    src: ../files/99-sysctl.conf
+    dest: /etc/sysctl.d/99-sysctl.conf
+  register: sysctl
+
+- name: Reload sysctl
+  command: sysctl --system
+  when: sysctl is changed
+
 - name: Add the nf_conntrack module
   community.general.modprobe:
     name: nf_conntrack
@@ -119,11 +129,6 @@
     state: restarted
     enabled: yes
     daemon_reload: yes
-
-- name: Copy 99-sysctl.conf
-  copy:
-    src: ../files/99-sysctl.conf
-    dest: /etc/sysctl.d/99-sysctl.conf
 
 - name: Reload sysctl
   command: "{{ item }}"
