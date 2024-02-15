@@ -1,17 +1,7 @@
 [Unit]
 DefaultDependencies=no
-Wants=network-pre.target
-Wants=systemd-modules-load.service
-Wants=local-fs.target
-Before=network-pre.target
-Before=shutdown.target
-After=systemd-modules-load.service
-After=local-fs.target
-After=dbus.service
-After=polkit.service
-Conflicts=shutdown.target
+After=network-online.target
 ConditionPathExists=/etc/iptables/
-Documentation=man:iptables man:iptables-restore
 
 [Service]
 Type=oneshot
