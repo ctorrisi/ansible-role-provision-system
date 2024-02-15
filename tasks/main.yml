@@ -166,18 +166,26 @@
     group: root
     mode: 0644
 
-- name: Create iptables-startup@.service
+- name: Create iptables.service
   copy:
-    src: ../files/iptables@.service
-    dest: /etc/systemd/system/iptables@.service
+    src: ../files/iptables.service
+    dest: /etc/systemd/system/iptables.service
     owner: root
     group: root
     mode: 0644
 
-- name: Copy iptables.rules
+- name: Copy iptables-base.rules
   copy:
-    src: ../files/iptables.rules
-    dest:  /etc/iptables/iptables.rules
+    src: ../files/iptables-base.rules
+    dest:  /etc/iptables/base.rules
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copy iptables-empty.rules
+  copy:
+    src: ../files/iptables-empty.rules
+    dest:  /etc/iptables/empty.rules
     owner: root
     group: root
     mode: 0644
