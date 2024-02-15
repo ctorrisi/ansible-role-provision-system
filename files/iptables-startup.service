@@ -1,12 +1,12 @@
 [Unit]
-Description=Loads iptables on startup
+Description=Load iptables on startup
 ConditionFileIsExecutable=/etc/iptables-startup.sh
 After=network-online.target
 
 [Service]
 Type=forking
+ExecStartPre=/bin/sleep 5
 ExecStart=/bin/bash /etc/iptables-startup.sh
-start TimeoutSec=0
 RemainAfterExit=yes
 GuessMainPID=no
 
