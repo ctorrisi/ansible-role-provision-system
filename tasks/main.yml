@@ -1,23 +1,14 @@
 ---
-- name: Set timezone to UTC
-  timezone:
-    name: UTC
-
-- name: Set timedatectl set-ntp true
-  command: /usr/bin/timedatectl set-ntp true
-
-- name: Enable and start ntpd.service
-  systemd:
-    name: ntpd
-    state: started
-    enabled: yes
-
 - name: Disable GRUB splash
   lineinfile:
     path: /etc/default/grub
     regexp: ^GRUB_CMDLINE_LINUX_DEFAULT=
-    line: 'GRUB_CMDLINE_LINUX_DEFAULT=""'
-  notify: update-grub
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="mitigations=auto quiet security=apparmor"'
+  register: grub
+
+- name: Regenerate GRUB
+  command: grub2-mkconfig
+  when: grub is changed
 
 - name: Generate OpenSSH ECDSA Keypair
   openssh_keypair:
@@ -35,17 +26,6 @@
     state: started
     enabled: yes
 
-- name: Install packages
-  pacman:
-    update_cache: true
-    state: latest
-    name:
-      - salt
-      - docker
-      - consul
-      - nomad
-      - ipset
-
 - name: Limit the total size of journald logs
   lineinfile:
     dest: /etc/systemd/journald.conf
@@ -59,18 +39,16 @@
     enabled: yes
     daemon_reload: yes
 
-- name: Create systemd-resolved.conf.d configuration directory
-  file:
-    path: /etc/systemd/resolved.conf.d
-    state: directory
-    owner: root
-    group: root
-    mode: 0755
+- name: Enable and start systemd-resolved.service
+  systemd:
+    name: systemd-resolved
+    enabled: yes
+    state: started
 
-- name: Copy systemd-resolved configuration for consul domains
-  template:
-    src: ../files/resolved-consul.conf.j2
-    dest: /etc/systemd/resolved.conf.d/consul.conf
+- name: Set up cloudflare dns
+  copy:
+    src: ../files/resolved-cloudflare.conf
+    dest: /etc/systemd/resolved.conf.d/cloudflare.conf
     owner: root
     group: root
     mode: 0644
@@ -79,8 +57,6 @@
   systemd:
     name: systemd-resolved
     state: restarted
-    enabled: yes
-    daemon_reload: yes
 
 - name: Manage swap file entry in fstab.
   mount:
@@ -272,4 +248,3 @@
     state: restarted
     enabled: yes
     daemon_reload: yes
-

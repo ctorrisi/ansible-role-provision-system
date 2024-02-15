@@ -6,8 +6,7 @@ galaxy_info:
   license: apache
   min_ansible_version: "2.10"
   platforms:
-    - name: ArchLinux
+    - name: SLES
   galaxy_tags:
     - system
     - systemd
-
