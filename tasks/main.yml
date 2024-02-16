@@ -4,6 +4,7 @@
     content: 'admin ALL=(ALL:ALL) NOPASSWD:ALL'
     dest: /etc/sudoers.d/admin
     mode: 0400
+  when: manage_admin_user
 
 - name: Enable and start systemd-resolved.service
   systemd:
