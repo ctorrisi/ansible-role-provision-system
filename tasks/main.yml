@@ -25,6 +25,11 @@
     name: systemd-resolved
     state: restarted
 
+- name: Manage swap file
+  include_tasks:
+    file: swapfile.yml
+  when: manage_swap_file
+
 - name: Copy 99-sysctl.conf
   copy:
     src: ../files/99-sysctl.conf
