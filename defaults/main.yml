@@ -1,5 +1,1 @@
 ---
-swap_file_path: /swapfile
-swap_file_size_mb: '2048'
-swap_file_state: present
-swap_file_create_command: "btrfs filesystem mkswapfile --size {{ swap_file_size_mb }}M {{ swap_file_path }}"
