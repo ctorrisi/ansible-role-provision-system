@@ -2,6 +2,14 @@
 - name: facts | Gather service facts
   service_facts:
 
+- name: Ansible facts
+  debug:
+    msg: {{ ansible_facts }}
+
+- name: Services after
+  debug:
+    msg: {{ services }}
+
 - name: systemd-networkd | Install systemd-network
   package:
     name: systemd-network
