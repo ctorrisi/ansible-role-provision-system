@@ -15,7 +15,7 @@
 
 - name: systemd-networkd | Stop and disable NetworkManager
   service:
-    name: NetworkManager
+    name: item
     enabled: false
     state: stopped
   when: item in services
