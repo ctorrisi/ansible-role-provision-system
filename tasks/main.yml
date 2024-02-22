@@ -6,7 +6,7 @@
 
 - name: systemd-networkd | Enable systemd-networkd
   service:
-    name: systemd-networkd
+    name: systemd-network
     enabled: true
     state: stopped
 
