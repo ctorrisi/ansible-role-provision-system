@@ -1,8 +1,4 @@
 ---
-- name: Services after
-  debug:
-    msg: '{{ services }}'
-
 - name: facts | Gather service facts
   service_facts:
 
