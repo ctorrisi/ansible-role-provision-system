@@ -1,12 +1,12 @@
 ---
 - name: systemd-networkd | Install systemd-networkd
   package:
-    name: systemd-networkd
+    name: systemd-network
     state: present
 
 - name: systemd-networkd | Enable systemd-networkd
   service:
-    name: systemd-network
+    name: systemd-networkd
     enabled: true
     state: stopped
 
