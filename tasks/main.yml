@@ -18,7 +18,9 @@
     name: NetworkManager
     enabled: false
     state: stopped
-  when: services['NetworkManager.service'] != None
+  when: item in services
+  loop:
+    - NetworkManager.service
 
 - name: systemd-networkd | Remove NetworkManager
   package:
