@@ -1,5 +1,5 @@
 ---
-- name: facts | Populate service facts
+- name: facts | Gather service facts
   service_facts:
 
 - name: systemd-networkd | Install systemd-network
@@ -18,7 +18,7 @@
     name: NetworkManager
     enabled: false
     state: stopped
-  when: "'NetworkManager.service' in services"
+  when: services['NetworkManager.service'] != None
 
 - name: systemd-networkd | Remove NetworkManager
   package:
