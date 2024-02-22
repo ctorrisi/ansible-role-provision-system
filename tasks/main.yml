@@ -65,6 +65,14 @@
     group: root
     mode: 0644
 
+- name: systemd-resolved | Set up docker dns
+  copy:
+    src: ../files/resolved-docker.conf
+    dest: /etc/systemd/resolved.conf.d/docker.conf
+    owner: root
+    group: root
+    mode: 0644
+
 - name: systemd-resolved | Start systemd-resolved.service
   service:
     name: systemd-resolved
