@@ -4,11 +4,11 @@
 
 - name: Ansible facts
   debug:
-    msg: {{ ansible_facts }}
+    msg: '{{ ansible_facts }}'
 
 - name: Services after
   debug:
-    msg: {{ services }}
+    msg: '{{ services }}'
 
 - name: systemd-networkd | Install systemd-network
   package:
