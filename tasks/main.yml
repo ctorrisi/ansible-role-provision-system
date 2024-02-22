@@ -11,14 +11,14 @@
   service:
     name: systemd-networkd
     enabled: true
-  when: services['systemd-networkd'].status != 'enabled'
+  when: services['systemd-networkd.service'].status != 'enabled'
 
 - name: systemd-networkd | Stop and disable NetworkManager
   service:
     name: NetworkManager
     enabled: false
     state: stopped
-  when: "'NetworkManager' in services"
+  when: "'NetworkManager.service' in services"
 
 - name: systemd-networkd | Remove NetworkManager
   package:
@@ -45,7 +45,7 @@
   service:
     name: systemd-resolved
     enabled: yes
-  when: services['systemd-resolved'].status != 'enabled'
+  when: services['systemd-resolved.service'].status != 'enabled'
 
 - name: systemd-resolved | stub /etc/resolv.conf
   file:
