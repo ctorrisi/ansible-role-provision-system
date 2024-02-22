@@ -1,0 +1,11 @@
+---
+- name: NetworkManager | Stop and disable NetworkManager
+  service:
+    name: NetworkManager
+    enabled: false
+    state: stopped
+
+- name: NetworkManager | Remove NetworkManager
+  package:
+    name: NetworkManager
+    state: absent

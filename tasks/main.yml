@@ -13,19 +13,10 @@
     enabled: true
   when: services['systemd-networkd.service'].status != 'enabled'
 
-- name: systemd-networkd | Stop and disable NetworkManager
-  service:
-    name: item
-    enabled: false
-    state: stopped
-  when: item in services
-  loop:
-    - NetworkManager.service
-
-- name: systemd-networkd | Remove NetworkManager
-  package:
-    name: NetworkManager
-    state: absent
+- name: NetworkManager | Stop, disable and remove NetworkManager
+  include_tasks:
+    file: network_manager.yml
+  when: services['NetworkManager.service'] != None
 
 - name: systemd-networkd | Configure en* dhcp
   copy:
