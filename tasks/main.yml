@@ -1,14 +1,10 @@
 ---
-- name: facts | Gather service facts
-  service_facts:
-
-- name: Ansible facts
-  debug:
-    msg: '{{ ansible_facts }}'
-
 - name: Services after
   debug:
     msg: '{{ services }}'
+
+- name: facts | Gather service facts
+  service_facts:
 
 - name: systemd-networkd | Install systemd-network
   package:
@@ -21,10 +17,18 @@
     enabled: true
   when: services['systemd-networkd.service'].status != 'enabled'
 
-- name: NetworkManager | Stop, disable and remove NetworkManager
-  include_tasks:
-    file: network_manager.yml
-  when: services['NetworkManager.service'] != None
+- name: NetworkManager | Stop and disable NetworkManager
+  service:
+    name: NetworkManager
+    enabled: false
+    state: stopped
+  when: services['NetworkManager.service'] != None and
+    services['NetworkManager.service'].status != 'not-found'
+
+- name: NetworkManager | Remove NetworkManager
+  package:
+    name: NetworkManager
+    state: absent
 
 - name: systemd-networkd | Configure en* dhcp
   copy:
