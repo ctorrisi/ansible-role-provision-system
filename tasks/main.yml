@@ -1,15 +1,46 @@
 ---
-- name: users | Add admin to sudoers
-  copy:
-    content: 'admin ALL=(ALL:ALL) NOPASSWD:ALL'
-    dest: /etc/sudoers.d/admin
-    mode: 0400
+- name: systemd-networkd | Install systemd-networkd
+  package:
+    name: systemd-networkd
+    state: present
 
-- name: systemd-resolved | Enable and start systemd-resolved.service
-  systemd:
+- name: systemd-networkd | Enable systemd-networkd
+  service:
+    name: systemd-networkd
+    enabled: true
+    state: stopped
+
+- name: systemd-networkd | Stop and disable NetworkManager
+  service:
+    name: NetworkManager
+    enabled: false
+    state: stopped
+
+- name: systemd-networkd | Remove NetworkManager
+  package:
+    name: NetworkManager
+    state: absent
+
+- name: systemd-networkd | Configure en* dhcp
+  copy:
+    dest: /etc/systemd/network/99-en-wildcard.network
+    mode: 0644
+    content: |
+      [Match]
+      Name=en*
+      
+      [Network]
+      DHCP=yes
+
+- name: systemd-networkd | Start systemd-networkd
+  service:
+    name: systemd-networkd
+    state: started
+
+- name: systemd-resolved | Enable systemd-resolved.service
+  service:
     name: systemd-resolved
     enabled: yes
-    state: started
 
 - name: systemd-resolved | stub /etc/resolv.conf
   file:
@@ -26,10 +57,16 @@
     group: root
     mode: 0644
 
-- name: systemd-resolved | Enable and start systemd-resolved.service
-  systemd:
+- name: systemd-resolved | Start systemd-resolved.service
+  service:
     name: systemd-resolved
-    state: restarted
+    state: started
+
+- name: users | Add admin to sudoers
+  copy:
+    content: 'admin ALL=(ALL:ALL) NOPASSWD:ALL'
+    dest: /etc/sudoers.d/admin
+    mode: 0400
 
 - name: swap | Manage swap file
   include_tasks:
@@ -64,7 +101,7 @@
       nf_conntrack
 
 - name: sysctl | Enable and start systemd-modules-load.service
-  systemd:
+  service:
     name: systemd-modules-load
     state: restarted
     enabled: yes
@@ -88,7 +125,7 @@
     mode: 0644
 
 - name: sysctl | Enable and start nf_conntrack-params.service
-  systemd:
+  service:
     name: nf_conntrack-params
     state: restarted
     enabled: yes
@@ -118,14 +155,14 @@
     mode: 0744
 
 - name: thp | Enable and start disable-transparent-huge-pages service
-  systemd:
+  service:
     name: disable-transparent-huge-pages
     state: restarted
     enabled: yes
     daemon_reload: yes
 
 - name: iptables | Install iptables and ipset
-  zypper:
+  package:
     name:
       - iptables
       - ipset
@@ -164,7 +201,7 @@
     mode: 0644
 
 - name: iptables | Enable iptables.service
-  systemd:
+  service:
     name: iptables
     enabled: yes
     daemon_reload: yes
@@ -186,7 +223,7 @@
     mode: 0744
 
 - name: iptables | Enable and start iptables-startup.service
-  systemd:
+  service:
     name: iptables-startup.service
     state: stopped
     enabled: yes
@@ -225,7 +262,7 @@
     mode: 0744
 
 - name: iptables | Enable and start ipset-blacklist service
-  systemd:
+  service:
     name: ipset-blacklist.service
     state: restarted
     enabled: yes
