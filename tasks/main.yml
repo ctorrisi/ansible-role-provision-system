@@ -2,9 +2,11 @@
 - name: facts | Gather service facts
   service_facts:
 
-- name: systemd-networkd | Install systemd-network
+- name: packages | Install systemd-network, docker
   package:
-    name: systemd-network
+    name:
+      - systemd-network
+      - docker
     state: present
 
 - name: systemd-networkd | Enable systemd-networkd
@@ -67,6 +69,26 @@
   service:
     name: systemd-resolved
     state: started
+
+- name: docker | Enable docker.service
+  service:
+    name: docker
+    enabled: yes
+  when: services['docker.service'].status != 'enabled'
+
+- name: docker | Copy daemon.json
+  copy:
+    src: ../files/docker-daemon.json
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: 644
+
+- name: docker | Enable docker.service
+  service:
+    name: docker
+    state: started
+  when: services['docker.service'].state != 'running'
 
 - name: users | Add admin to sudoers
   copy:
