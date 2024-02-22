@@ -1,18 +1,24 @@
 ---
-- name: Add admin to sudoers
+- name: users | Add admin to sudoers
   copy:
     content: 'admin ALL=(ALL:ALL) NOPASSWD:ALL'
     dest: /etc/sudoers.d/admin
     mode: 0400
-  when: manage_admin_user
 
-- name: Enable and start systemd-resolved.service
+- name: systemd-resolved | Enable and start systemd-resolved.service
   systemd:
     name: systemd-resolved
     enabled: yes
     state: started
 
-- name: Set up cloudflare dns
+- name: systemd-resolved | stub /etc/resolv.conf
+  file:
+    src: /run/systemd/resolve/stub-resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
+
+- name: systemd-resolved | Set up cloudflare dns
   copy:
     src: ../files/resolved-cloudflare.conf
     dest: /etc/systemd/resolved.conf.d/cloudflare.conf
@@ -20,51 +26,51 @@
     group: root
     mode: 0644
 
-- name: Enable and start systemd-resolved.service
+- name: systemd-resolved | Enable and start systemd-resolved.service
   systemd:
     name: systemd-resolved
     state: restarted
 
-- name: Manage swap file
+- name: swap | Manage swap file
   include_tasks:
     file: swapfile.yml
   when: manage_swap_file
 
-- name: Copy 99-sysctl.conf
+- name: sysctl | Copy 99-sysctl.conf
   copy:
     src: ../files/99-sysctl.conf
     dest: /etc/sysctl.d/99-sysctl.conf
   register: sysctl
 
-- name: Reload sysctl
+- name: sysctl | Reload sysctl
   command: sysctl --system
   when: sysctl is changed
 
-- name: Add the nf_conntrack module
+- name: sysctl | Add the nf_conntrack module
   modprobe:
     name: nf_conntrack
     state: present
 
-- name: Set nf_conntrack parameters
+- name: sysctl | Set nf_conntrack parameters
   copy:
     dest: /etc/modprobe.d/99-nf_conntrack.conf
     content: |
       options nf_conntrack hashsize=2500000
 
-- name: Load nf_conntrack module
+- name: sysctl | Load nf_conntrack module
   copy:
     dest: /etc/modules-load.d/nf_conntrack.conf
     content: |
       nf_conntrack
 
-- name: Enable and start systemd-modules-load.service
+- name: sysctl | Enable and start systemd-modules-load.service
   systemd:
     name: systemd-modules-load
     state: restarted
     enabled: yes
     daemon_reload: yes
 
-- name: Copy nf_conntrack parameters script
+- name: sysctl | Copy nf_conntrack parameters script
   copy:
     dest: /etc/nf_conntrack-params.sh
     content: |
@@ -73,7 +79,7 @@
       sysctl --system
     mode: 0744
 
-- name: Copy nf_conntrack parameters service
+- name: sysctl | Copy nf_conntrack parameters service
   copy:
     src: ../files/nf_conntrack-params.service
     dest: /etc/systemd/system/nf_conntrack-params.service
@@ -81,21 +87,21 @@
     group: root
     mode: 0644
 
-- name: Enable and start nf_conntrack-params.service
+- name: sysctl | Enable and start nf_conntrack-params.service
   systemd:
     name: nf_conntrack-params
     state: restarted
     enabled: yes
     daemon_reload: yes
 
-- name: Reload sysctl
+- name: sysctl | Reload sysctl
   command: "{{ item }}"
   loop:
     - sysctl -w net.ipv4.route.flush=1
     - sysctl -w net.ipv6.route.flush=1
     - sysctl --system
 
-- name: Create disable-transparent-huge-pages.service
+- name: thp | Create disable-transparent-huge-pages.service
   copy:
     src: ../files/disable-transparent-huge-pages.service
     dest: /etc/systemd/system/disable-transparent-huge-pages.service
@@ -103,7 +109,7 @@
     group: root
     mode: 0644
 
-- name: Copy disable-transparent-huge-pages
+- name: thp | Copy disable-transparent-huge-pages
   copy:
     src: ../files/disable-transparent-huge-pages
     dest: /etc/disable-transparent-huge-pages
@@ -111,21 +117,21 @@
     group: root
     mode: 0744
 
-- name: Enable and start disable-transparent-huge-pages service
+- name: thp | Enable and start disable-transparent-huge-pages service
   systemd:
     name: disable-transparent-huge-pages
     state: restarted
     enabled: yes
     daemon_reload: yes
 
-- name: Install iptables and ipset
+- name: iptables | Install iptables and ipset
   zypper:
     name:
       - iptables
       - ipset
     state: present
 
-- name: Create iptables directory
+- name: iptables | Create iptables directory
   file:
     path: /etc/iptables
     state: directory
@@ -133,7 +139,7 @@
     group: root
     mode: 0755
 
-- name: Create iptables-startup.service
+- name: iptables | Create iptables-startup.service
   copy:
     src: ../files/iptables.service
     dest: /etc/systemd/system/iptables.service
@@ -141,7 +147,7 @@
     group: root
     mode: 0644
 
-- name: Create iptables.service
+- name: iptables | Create iptables.service
   copy:
     src: ../files/iptables.service
     dest: /etc/systemd/system/iptables.service
@@ -149,7 +155,7 @@
     group: root
     mode: 0644
 
-- name: Copy iptables-base.rules
+- name: iptables | Copy iptables-base.rules
   copy:
     src: ../files/iptables-base.rules
     dest:  /etc/iptables/base.rules
@@ -157,13 +163,13 @@
     group: root
     mode: 0644
 
-- name: Enable iptables.service
+- name: iptables | Enable iptables.service
   systemd:
     name: iptables
     enabled: yes
     daemon_reload: yes
 
-- name: Create iptables-startup.service
+- name: iptables | Create iptables-startup.service
   copy:
     src: ../files/iptables-startup.service
     dest: /etc/systemd/system/iptables-startup.service
@@ -171,7 +177,7 @@
     group: root
     mode: 0644
 
-- name: Copy iptables-startup.sh
+- name: iptables | Copy iptables-startup.sh
   copy:
     src: ../files/iptables-startup.sh
     dest: /etc/iptables-startup.sh
@@ -179,14 +185,14 @@
     group: root
     mode: 0744
 
-- name: Enable and start iptables-startup.service
+- name: iptables | Enable and start iptables-startup.service
   systemd:
     name: iptables-startup.service
     state: stopped
     enabled: yes
     daemon_reload: yes
 
-- name: Create ipset-blacklist configuration directory
+- name: iptables | Create ipset-blacklist configuration directory
   file:
     path: /etc/ipset-blacklist
     state: directory
@@ -194,7 +200,7 @@
     group: root
     mode: 0755
 
-- name: Copy range2cidr.awk
+- name: iptables | Copy range2cidr.awk
   copy:
     src: ../files/range2cidr.awk
     dest: /etc/ipset-blacklist/range2cidr.awk
@@ -202,7 +208,7 @@
     group: root
     mode: 0644
 
-- name: Create ipset-blacklist.service
+- name: iptables | Create ipset-blacklist.service
   copy:
     src: ../files/ipset-blacklist.service
     dest: /etc/systemd/system/ipset-blacklist.service
@@ -210,7 +216,7 @@
     group: root
     mode: 0644
 
-- name: Copy ipset-blacklist.sh
+- name: iptables | Copy ipset-blacklist.sh
   copy:
     src: ../files/ipset-blacklist.sh
     dest: /etc/ipset-blacklist.sh
@@ -218,7 +224,7 @@
     group: root
     mode: 0744
 
-- name: Enable and start ipset-blacklist service
+- name: iptables | Enable and start ipset-blacklist service
   systemd:
     name: ipset-blacklist.service
     state: restarted
