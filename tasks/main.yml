@@ -96,7 +96,7 @@
   service:
     name: docker
     state: started
-  when: services['docker.service'].state != 'running'
+  when: services['docker.service'] == None or services['docker.service'].state != 'running'
 
 - name: users | Add admin to sudoers
   copy:
