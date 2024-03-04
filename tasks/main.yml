@@ -242,29 +242,6 @@
     enabled: yes
     daemon_reload: yes
 
-- name: iptables | Create iptables-startup.service
-  copy:
-    src: ../files/iptables-startup.service
-    dest: /etc/systemd/system/iptables-startup.service
-    owner: root
-    group: root
-    mode: 0644
-
-- name: iptables | Copy iptables-startup.sh
-  copy:
-    src: ../files/iptables-startup.sh
-    dest: /etc/iptables-startup.sh
-    owner: root
-    group: root
-    mode: 0744
-
-- name: iptables | Enable and start iptables-startup.service
-  service:
-    name: iptables-startup.service
-    state: stopped
-    enabled: yes
-    daemon_reload: yes
-
 - name: iptables | Create ipset-blacklist configuration directory
   file:
     path: /etc/ipset-blacklist
