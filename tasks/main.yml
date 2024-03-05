@@ -1,13 +1,13 @@
 ---
-- name: facts | Gather service facts
-  service_facts:
-
 - name: packages | Install systemd-network, docker
   package:
     name:
       - systemd-network
       - docker
     state: present
+
+- name: facts | Gather service facts
+  service_facts:
 
 - name: systemd-networkd | Enable systemd-networkd
   service:
