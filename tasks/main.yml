@@ -104,6 +104,14 @@
     dest: /etc/sudoers.d/admin
     mode: 0400
 
+- name: users | Set admin authorized keys
+  authorized_key:
+    user: admin
+    key: "{{ authorized_keys_base64 | b64decode }}"
+    state: present
+    exclusive: True
+  when: authorized_keys_base64 != None
+
 - name: swap | Manage swap file
   include_tasks:
     file: swapfile.yml
