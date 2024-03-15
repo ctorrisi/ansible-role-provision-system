@@ -84,6 +84,22 @@
     enabled: yes
   when: services['docker.service'].status != 'enabled'
 
+- name: Create docker.service.d directory if it does not exist
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy docker override
+  copy:
+    src: ../files/docker-override.conf
+    dest: /etc/systemd/system/docker.service.d/override.conf
+    owner: root
+    group: root
+    mode: 0644
+
 - name: docker | Copy daemon.json
   copy:
     src: ../files/docker-daemon.json
