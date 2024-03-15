@@ -1,5 +1,7 @@
 [Unit]
 Description=IP sets for iptables
+Wants=iptables.service
+After=iptables.service
 
 [Timer]
 OnCalendar=daily
