@@ -55,6 +55,14 @@
     content: |
       nameserver 127.0.0.1
 
+- name: NetworkManager | Disable managed DNS
+  copy:
+    dest: /etc/NetworkManager/conf.d/dns
+    mode: 0644
+    content: |
+      dns=none
+      rc-manager=unmanaged
+
 - name: NetworkManager | Restart NetworkManager
   service:
     name: NetworkManager
