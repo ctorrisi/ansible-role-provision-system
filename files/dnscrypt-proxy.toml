@@ -46,7 +46,7 @@ server_names = ['cloudflare', 'google']
 ## To listen to all IPv4+IPv6 addresses, use `listen_addresses = ['[::]:53']`
 
 #listen_addresses = ['127.0.0.1:53']
-listen_addresses = ['127.0.0.1:5300', '[::1]:5300']
+listen_addresses = ['127.0.0.1:5300']
 
 
 ## Maximum number of simultaneous client connections to accept

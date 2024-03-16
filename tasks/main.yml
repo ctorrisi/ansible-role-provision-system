@@ -9,49 +9,51 @@
 - name: facts | Gather service facts
   service_facts:
 
-- name: packages | Install dnscrypt-proxy service
-  command: dnscrypt-proxy -service install
+- name: dnscrypt-proxy | Setup dnscrypt-proxy configuration
+  copy:
+    src: ../files/dnscrypt-proxy.toml
+    dest: /etc/dnscrypt-proxy.toml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: dnscrypt-proxy | Copy dnscrypt-proxy service
+  copy:
+    src: ../files/dnscrypt-proxy.service
+    dest: /etc/systemd/system/dnscrypt-proxy.service
+    owner: root
+    group: root
+    mode: 0644
 
 - name: dnscrypt-proxy | Enable dnscrypt-proxy
   service:
     name: dnscrypt-proxy
     enabled: yes
-
-- name: dnscrypt-proxy | Setup dnscrypt-proxy configuration
-  copy:
-    src: ../files/dnscrypt-proxy.toml
-    dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
-    owner: root
-    group: root
-    mode: 0644
-
-- name: dnscrypt-proxy | Start dnscrypt-proxy
-  service:
-    name: dnscrypt-proxy
+    daemon_reload: yes
     state: started
-
-- name: NetworkManager | Set up dnsmasq dns
-  copy:
-    dest: /etc/NetworkManager/conf.d/dns.conf
-    mode: 0644
-    content: |
-      [main]
-      dns=dnsmasq
-
-- name: Create /etc/NetworkManager/dnsmasq.d directory
-  file:
-    path: /etc/NetworkManager/dnsmasq.d
-    state: directory
-    mode: '0755'
 
 - name: dnsmasq | dnscrypt-proxy configuration
   copy:
-    dest: /etc/NetworkManager/dnsmasq.d/99-dnscrypt-proxy
+    dest: /etc/dnsmasq.d/99-dnscrypt-proxy
     mode: 0644
     content: |
+      no-resolv
       server=127.0.0.1#5300
       listen-address=127.0.0.1
       listen-address=172.17.0.1
+
+- name: dnsmasq | Start dnsmasq
+  service:
+    name: dnsmasq
+    state: started
+    enabled: yes
+
+- name: resolv.conf | resolv.conf
+  copy:
+    dest: /etc/resolv.conf
+    mode: 0644
+    content: |
+      nameserver 127.0.0.1
 
 - name: NetworkManager | Restart NetworkManager
   service:
