@@ -38,9 +38,15 @@
       [main]
       dns=dnsmasq
 
+- name: Create /etc/NetworkManager/dnsmasq.d directory
+  file:
+    path: /etc/NetworkManager/dnsmasq.d
+    state: directory
+    mode: '0755'
+
 - name: dnsmasq | dnscrypt-proxy configuration
   copy:
-    dest: /etc/dnsmasq.d/99-dnscrypt-proxy
+    dest: /etc/NetworkManager/dnsmasq.d/99-dnscrypt-proxy
     mode: 0644
     content: |
       server=127.0.0.1#5300
