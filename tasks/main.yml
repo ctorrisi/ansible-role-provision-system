@@ -6,6 +6,9 @@
       - dnscrypt-proxy
     state: present
 
+- name: facts | Gather service facts
+  service_facts:
+
 - name: packages | Install dnscrypt-proxy service
   command: dnscrypt-proxy -service install
 
