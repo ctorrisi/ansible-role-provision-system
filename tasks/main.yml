@@ -32,9 +32,9 @@
     daemon_reload: yes
     state: started
 
-- name: dnsmasq | dnscrypt-proxy configuration
+- name: dnsmasq | Base configuration
   copy:
-    dest: /etc/dnsmasq.d/99-dnscrypt-proxy
+    dest: /etc/dnsmasq.d/10-base.conf
     mode: 0644
     content: |
       no-resolv
@@ -57,9 +57,10 @@
 
 - name: NetworkManager | Disable managed DNS
   copy:
-    dest: /etc/NetworkManager/conf.d/dns
+    dest: /etc/NetworkManager/NetworkManager.conf
     mode: 0644
     content: |
+      [main]
       dns=none
       rc-manager=unmanaged
 
