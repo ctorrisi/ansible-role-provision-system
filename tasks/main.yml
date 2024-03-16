@@ -2,81 +2,52 @@
 - name: packages | Install systemd-network, docker
   package:
     name:
-      - systemd-network
       - docker
+      - dnscrypt-proxy
     state: present
 
-- name: facts | Gather service facts
-  service_facts:
+- name: packages | Install dnscrypt-proxy service
+  command: dnscrypt-proxy -service install
 
-- name: systemd-networkd | Enable systemd-networkd
+- name: dnscrypt-proxy | Enable dnscrypt-proxy
   service:
-    name: systemd-networkd
-    enabled: true
-  when: services['systemd-networkd.service'].status != 'enabled'
+    name: dnscrypt-proxy
+    enabled: yes
 
-- name: NetworkManager | Stop and disable NetworkManager
-  service:
-    name: NetworkManager
-    enabled: false
-    state: stopped
-  when: services['NetworkManager.service'] != None and
-    services['NetworkManager.service'].status != 'not-found'
-
-- name: NetworkManager | Remove NetworkManager
-  package:
-    name: NetworkManager
-    state: absent
-
-- name: systemd-networkd | Configure en* dhcp
+- name: dnscrypt-proxy | Setup dnscrypt-proxy configuration
   copy:
-    dest: /etc/systemd/network/99-en-wildcard.network
+    src: ../files/dnscrypt-proxy.toml
+    dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: dnscrypt-proxy | Start dnscrypt-proxy
+  service:
+    name: dnscrypt-proxy
+    state: started
+
+- name: NetworkManager | Set up dnsmasq dns
+  copy:
+    dest: /etc/NetworkManager/conf.d/dns.conf
     mode: 0644
     content: |
-      [Match]
-      Name=en*
-      
-      [Network]
-      DHCP=yes
+      [main]
+      dns=dnsmasq
 
-- name: systemd-networkd | Start systemd-networkd
-  service:
-    name: systemd-networkd
-    state: started
-
-- name: systemd-resolved | Enable systemd-resolved.service
-  service:
-    name: systemd-resolved
-    enabled: yes
-  when: services['systemd-resolved.service'].status != 'enabled'
-
-- name: systemd-resolved | stub /etc/resolv.conf
-  file:
-    src: /run/systemd/resolve/stub-resolv.conf
-    dest: /etc/resolv.conf
-    state: link
-    force: true
-
-- name: systemd-resolved | Set up cloudflare dns
+- name: dnsmasq | dnscrypt-proxy configuration
   copy:
-    src: ../files/resolved-cloudflare.conf
-    dest: /etc/systemd/resolved.conf.d/cloudflare.conf
-    owner: root
-    group: root
+    dest: /etc/dnsmasq.d/99-dnscrypt-proxy
     mode: 0644
+    content: |
+      server=127.0.0.1#5300
+      listen-address=127.0.0.1
+      listen-address=172.17.0.1
 
-- name: systemd-resolved | Set up docker dns
-  copy:
-    src: ../files/resolved-docker.conf
-    dest: /etc/systemd/resolved.conf.d/docker.conf
-    owner: root
-    group: root
-    mode: 0644
-
-- name: systemd-resolved | Start systemd-resolved.service
+- name: NetworkManager | Restart NetworkManager
   service:
-    name: systemd-resolved
-    state: started
+    name: NetworkManager
+    state: restarted
 
 - name: docker | Enable docker.service
   service:
