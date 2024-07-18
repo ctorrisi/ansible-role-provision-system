@@ -4,6 +4,7 @@
     name:
       - docker
       - dnscrypt-proxy
+      - dnsmasq
     state: present
 
 - name: facts | Gather service facts
