@@ -42,18 +42,6 @@ URLS="$URLS https://iplists.firehol.org/files/firehol_level2.netset"
 #     0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            match-set www.badips.com src
 #     0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            match-set www.badips.com dst
 
-# check for dependencies - ipset and curl
-if [ -z "$(which ipset 2>/dev/null)" ]; then
-    echo "Cannot find ipset"
-    echo "Run \"apt-get install ipset\" (Debian/Ubuntu) or \"yum install ipset\" (RedHat/CentOS/Fedora) or \"opkg install ipset\" (OpenWRT/LEDE)"
-    exit 1
-fi
-if [ -z "$(which curl 2>/dev/null)" ]; then
-    echo "Cannot find curl"
-    echo "Run \"apt-get install curl\" (Debian/Ubuntu) or \"yum install curl\" (RedHat/CentOS/Fedora) or \"opkg install curl\" (OpenWRT/LEDE)"
-    exit 1
-fi
-
 # check if we are on OpenWRT
 if [ "$(which uci 2>/dev/null)" ]; then
     # we're on OpenWRT
