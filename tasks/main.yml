@@ -5,6 +5,7 @@
       - docker
       - dnscrypt-proxy
       - dnsmasq
+      - unzip
     state: present
 
 - name: facts | Gather service facts
@@ -219,6 +220,18 @@
       - iptables
       - ipset
     state: present
+
+- name: iptables | Set xtables-nft-multi for iptables, iptables-save, and iptables-restore
+  copy:
+    dest: "/usr/share/libalternatives/{{ item }}/2.conf"
+    content: |
+      binary=/usr/sbin/xtables-nft-multi
+      group={{ item }}
+      options=KeepArgv0
+  with_items:
+    - iptables
+    - iptables-restore
+    - iptables-save
 
 - name: iptables | Create iptables directory
   file:
