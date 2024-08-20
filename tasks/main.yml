@@ -1,5 +1,5 @@
 ---
-- name: packages | Install systemd-network, docker
+- name: packages | Install systemd-network, docker, iptables, ipset, dnsmasq, dnscrypt-proxy
   package:
     name:
       - docker
