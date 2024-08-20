@@ -38,14 +38,15 @@ COMMIT
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [103:12543]
-:port-scanning - [0:0]
+:internal - [0:0]
+:external - [0:0]
 -A INPUT -i docker0 -j ACCEPT
 -A INPUT -i lo -j ACCEPT
--A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
--A INPUT -p tcp -m multiport --dports 60022,443 -m conntrack --ctstate INVALID,UNTRACKED -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
--A INPUT -p tcp -m conntrack --ctstate INVALID -j DROP
--A INPUT -p tcp -m multiport --dports 60022,443 -j ACCEPT
+-A INPUT -j internal
+-A INPUT -j external
 -A INPUT -j DROP
--A port-scanning -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m limit --limit 1/sec --limit-burst 2 -j RETURN
--A port-scanning -j DROP
+-A external -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A external -p tcp -m multiport --dports 60022,443 -m conntrack --ctstate INVALID,UNTRACKED -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
+-A external -p tcp -m conntrack --ctstate INVALID -j DROP
+-A external -p tcp -m multiport --dports 60022,443 -j ACCEPT
 COMMIT
