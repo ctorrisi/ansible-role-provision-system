@@ -6,6 +6,8 @@
       - dnscrypt-proxy
       - dnsmasq
       - unzip
+      - iptables
+      - ipset
     state: present
 
 - name: facts | Gather service facts
@@ -213,13 +215,6 @@
     state: restarted
     enabled: yes
     daemon_reload: yes
-
-- name: iptables | Install iptables and ipset
-  package:
-    name:
-      - iptables
-      - ipset
-    state: present
 
 - name: iptables | Set xtables-nft-multi for iptables, iptables-save, and iptables-restore
   copy:
