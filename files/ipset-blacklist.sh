@@ -61,7 +61,7 @@ fi
 
 # inject references to blocklist in the beginning of input and forward chains
 if ! iptables -nL ${INPUT} | grep -q ${blocklist_chain_name}; then
-  iptables -I ${INPUT} 5 ${IN_OPT} -j ${blocklist_chain_name}
+  iptables -I ${INPUT} 4 ${IN_OPT} -j ${blocklist_chain_name}
 fi
 
 # flush the chain referencing blacklists, they will be restored in a second
