@@ -55,14 +55,14 @@ else
 fi
 
 # create main blocklists chain
-if ! iptables -nL | grep -q "Chain ${blocklist_chain_name}"; then
-    iptables -N ${blocklist_chain_name}
-fi
-
-# inject references to blocklist in the beginning of input and forward chains
-if ! iptables -nL ${INPUT} | grep -q ${blocklist_chain_name}; then
-  iptables -I ${INPUT} 4 ${IN_OPT} -j ${blocklist_chain_name}
-fi
+# if ! iptables -nL | grep -q "Chain ${blocklist_chain_name}"; then
+#     iptables -N ${blocklist_chain_name}
+# fi
+#
+# # inject references to blocklist in the beginning of input and forward chains
+# if ! iptables -nL ${INPUT} | grep -q ${blocklist_chain_name}; then
+#   iptables -I ${INPUT} 3 ${IN_OPT} -j ${blocklist_chain_name}
+# fi
 
 # flush the chain referencing blacklists, they will be restored in a second
 iptables -F ${blocklist_chain_name}
