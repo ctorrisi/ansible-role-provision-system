@@ -1,4 +1,8 @@
 ---
+- name: zypper | Disable openSUSE DVD repository
+  shell: zypper mr -d $(zypper repos | awk '$3 ~ /^openSUSE-[0-9]+-[0-9]+/{print $1}')
+  when: disable_dvd_repo and ansible_facts['os_family'] == "Suse"
+
 - name: packages | Install systemd-network, docker, iptables, ipset, dnsmasq, dnscrypt-proxy
   package:
     name:
