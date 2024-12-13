@@ -72,6 +72,9 @@
       dns=none
       rc-manager=unmanaged
 
+      [ipv4]
+      dns=127.0.0.1
+
 - name: NetworkManager | Restart NetworkManager
   service:
     name: NetworkManager
