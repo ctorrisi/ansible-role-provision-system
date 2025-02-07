@@ -39,12 +39,10 @@ COMMIT
 :FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [103:12543]
 :internal - [0:0]
-:blocklists - [0:0]
 :external - [0:0]
 -A INPUT -i docker0 -j ACCEPT
 -A INPUT -i lo -j ACCEPT
 -A INPUT -j internal
--A INPUT -j blocklists
 -A INPUT -j external
 -A INPUT -j DROP
 -A external -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
