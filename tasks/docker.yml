@@ -6,7 +6,7 @@
   service:
     name: docker
     enabled: yes
-  when: 'docker.service' not in services or services['docker.service'].status != 'enabled'
+  when: "'docker.service' not in services or services['docker.service'].status != 'enabled'"
 
 - name: Create docker.service.d directory
   file:
@@ -36,4 +36,4 @@
   service:
     name: docker
     state: started
-  when: 'docker.service' not in services or services['docker.service'].state != 'running'
+  when: "'docker.service' not in services or services['docker.service'].state != 'running'"
