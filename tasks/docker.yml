@@ -1,4 +1,7 @@
 ---
+- name: Refresh service facts
+  service_facts:
+
 - name: Enable docker service
   service:
     name: docker
@@ -33,4 +36,4 @@
   service:
     name: docker
     state: started
-  when: services['docker.service'] == None or services['docker.service'].state != 'running'
+  when: "'docker.service' not in services or services['docker.service'].state != 'running'"

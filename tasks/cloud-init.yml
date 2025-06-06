@@ -1,3 +1,4 @@
+---
 - name: Configure cloud-init main configuration
   copy:
     dest: /etc/cloud/cloud.cfg
