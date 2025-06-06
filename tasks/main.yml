@@ -1,231 +1,32 @@
 ---
-- name: packages | Install systemd-network, docker, iptables, dnsmasq, dnscrypt-proxy
-  package:
-    name:
-      - docker
-      - dnscrypt-proxy
-      - dnsmasq
-      - unzip
-    state: present
+- name: System provisioning with cloud-init support
+  hosts: all
+  become: yes
 
-- name: facts | Gather service facts
-  service_facts:
+  tasks:
+    - name: Gather service facts
+      service_facts:
 
-- name: dnscrypt-proxy | Setup dnscrypt-proxy configuration
-  copy:
-    src: ../files/dnscrypt-proxy.toml
-    dest: /etc/dnscrypt-proxy.toml
-    owner: root
-    group: root
-    mode: 0644
+    - name: Install base packages
+      include_tasks: tasks/packages.yml
 
-- name: dnscrypt-proxy | Copy dnscrypt-proxy service
-  copy:
-    src: ../files/dnscrypt-proxy.service
-    dest: /etc/systemd/system/dnscrypt-proxy.service
-    owner: root
-    group: root
-    mode: 0644
+    - name: Configure cloud-init
+      include_tasks: tasks/cloud-init.yml
 
-- name: dnscrypt-proxy | Enable dnscrypt-proxy
-  service:
-    name: dnscrypt-proxy
-    enabled: yes
-    daemon_reload: yes
-    state: started
+    - name: Configure DNS
+      include_tasks: tasks/dns.yml
 
-- name: dnsmasq | Base configuration
-  copy:
-    dest: /etc/dnsmasq.d/10-base.conf
-    mode: 0644
-    content: |
-      no-resolv
-      server=127.0.0.1#5300
-      listen-address=127.0.0.1
-      listen-address=172.17.0.1
+    - name: Configure networking
+      include_tasks: tasks/networking.yml
 
-- name: dnsmasq | Start dnsmasq
-  service:
-    name: dnsmasq
-    state: started
-    enabled: yes
+    - name: Configure Docker
+      include_tasks: tasks/docker.yml
 
-- name: resolv.conf | resolv.conf
-  copy:
-    dest: /etc/resolv.conf
-    mode: 0644
-    content: |
-      nameserver 127.0.0.1
+    - name: Configure users and security
+      include_tasks: tasks/users.yml
 
-- name: NetworkManager | Disable managed DNS
-  copy:
-    dest: /etc/NetworkManager/NetworkManager.conf
-    mode: 0644
-    content: |
-      [main]
-      dns=none
-      rc-manager=unmanaged
+    - name: Configure system tuning
+      include_tasks: tasks/system-tuning.yml
 
-      [ipv4]
-      dns=127.0.0.1
-
-- name: NetworkManager | Restart NetworkManager
-  service:
-    name: NetworkManager
-    state: restarted
-
-- name: docker | Enable docker.service
-  service:
-    name: docker
-    enabled: yes
-  when: services['docker.service'].status != 'enabled'
-
-- name: Create docker.service.d directory if it does not exist
-  file:
-    path: /etc/systemd/system/docker.service.d
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-
-- name: Copy docker override
-  copy:
-    src: ../files/docker-override.conf
-    dest: /etc/systemd/system/docker.service.d/override.conf
-    owner: root
-    group: root
-    mode: 0644
-
-- name: docker | Copy daemon.json
-  copy:
-    src: ../files/docker-daemon.json
-    dest: /etc/docker/daemon.json
-    owner: root
-    group: root
-    mode: 644
-
-- name: docker | Enable docker.service
-  service:
-    name: docker
-    state: started
-  when: services['docker.service'] == None or services['docker.service'].state != 'running'
-
-- name: users | Add admin to sudoers
-  copy:
-    content: 'admin ALL=(ALL:ALL) NOPASSWD:ALL'
-    dest: /etc/sudoers.d/admin
-    mode: 0400
-
-- name: users | Set admin authorized keys
-  authorized_key:
-    user: admin
-    key: "{{ authorized_keys_base64 | b64decode }}"
-    state: present
-    exclusive: True
-  when: authorized_keys_base64 != None
-
-- name: netfilter | Set nf_conntrack parameters
-  copy:
-    dest: /etc/modprobe.d/99-nf_conntrack.conf
-    content: |
-      options nf_conntrack hashsize=250000
-    owner: root
-    group: root
-    mode: 0644
-
-- name: netfilter | Load nf_conntrack modules
-  copy:
-    dest: /etc/modules-load.d/nf_conntrack.conf
-    content: |
-      nf_conntrack
-      nf_conntrack_ipv4
-      nf_conntrack_ipv6
-    owner: root
-    group: root
-    mode: 0644
-
-- name: Enable and start systemd-modules-load.service
-  systemd:
-    name: systemd-modules-load
-    state: restarted
-    enabled: yes
-    daemon_reload: yes
-
-- name: sysctl | Copy 99-sysctl.conf
-  copy:
-    src: ../files/99-sysctl.conf
-    dest: /etc/sysctl.d/99-sysctl.conf
-  register: sysctl
-
-- name: sysctl | Reload sysctl
-  command: sysctl --system
-  when: sysctl is changed
-
-- name: iptables | Set xtables-nft-multi for iptables, iptables-save, and iptables-restore
-  copy:
-    dest: "/usr/share/libalternatives/{{ item }}/2.conf"
-    content: |
-      binary=/usr/sbin/xtables-nft-multi
-      group={{ item }}
-      options=KeepArgv0
-  with_items:
-    - iptables
-    - iptables-restore
-    - iptables-save
-
-- name: firewall-manager | Create firewall directory structure
-  file:
-    path: "{{ item }}"
-    state: directory
-    owner: root
-    group: root
-    mode: 0700
-  with_items:
-    - /etc/firewall-manager
-    - /etc/firewall-manager/rules.d
-
-- name: firewall-manager | Install fwmctl script
-  copy:
-    src: ../files/firewall-manager/fwmctl
-    dest: /usr/local/bin/fwmctl
-    owner: root
-    group: root
-    mode: 0755
-
-- name: firewall-manager | Create firewall-manager.service
-  copy:
-    src: ../files/firewall-manager/firewall-manager.service
-    dest: /etc/systemd/system/firewall-manager.service
-    owner: root
-    group: root
-    mode: 0644
-
-- name: firewall-manager | Copy base firewall rules
-  copy:
-    src: ../files/firewall-manager/base.rules
-    dest: /etc/firewall-manager/base.rules
-    owner: root
-    group: root
-    mode: 0600
-
-- name: firewall-manager | Copy Docker rules
-  copy:
-    src: ../files/firewall-manager/10-docker.rules
-    dest: /etc/firewall-manager/rules.d/10-docker.rules
-    owner: root
-    group: root
-    mode: 0600
-
-- name: firewall-manager | Remove old iptables service if present
-  systemd:
-    name: iptables
-    enabled: no
-    state: stopped
-  failed_when: false
-
-- name: firewall-manager | Enable and start firewall-manager.service
-  systemd:
-    name: firewall-manager
-    enabled: yes
-    daemon_reload: yes
-    state: started
+    - name: Configure firewall
+      include_tasks: tasks/firewall.yml

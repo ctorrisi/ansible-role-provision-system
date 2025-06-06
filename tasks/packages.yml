@@ -1,0 +1,18 @@
+---
+- name: Install base system packages
+  package:
+    name:
+      - cloud-init
+      - docker
+      - dnscrypt-proxy
+      - dnsmasq
+      - unzip
+      - curl
+      - wget
+      - ca-certificates
+    state: present
+
+- name: Ensure cloud-init is enabled for boot
+  service:
+    name: cloud-init
+    enabled: yes

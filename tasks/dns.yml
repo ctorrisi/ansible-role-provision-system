@@ -1,0 +1,46 @@
+---
+- name: Setup dnscrypt-proxy configuration
+  copy:
+    src: ../files/dnscrypt-proxy.toml
+    dest: /etc/dnscrypt-proxy.toml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copy dnscrypt-proxy service
+  copy:
+    src: ../files/dnscrypt-proxy.service
+    dest: /etc/systemd/system/dnscrypt-proxy.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable dnscrypt-proxy
+  service:
+    name: dnscrypt-proxy
+    enabled: yes
+    daemon_reload: yes
+    state: started
+
+- name: Configure dnsmasq base settings
+  copy:
+    dest: /etc/dnsmasq.d/10-base.conf
+    mode: 0644
+    content: |
+      no-resolv
+      server=127.0.0.1#5300
+      listen-address=127.0.0.1
+      listen-address=172.17.0.1
+
+- name: Start and enable dnsmasq
+  service:
+    name: dnsmasq
+    state: started
+    enabled: yes
+
+- name: Configure system resolver
+  copy:
+    dest: /etc/resolv.conf
+    mode: 0644
+    content: |
+      nameserver 127.0.0.1

@@ -1,0 +1,36 @@
+---
+- name: Enable docker service
+  service:
+    name: docker
+    enabled: yes
+  when: services['docker.service'].status != 'enabled'
+
+- name: Create docker.service.d directory
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy docker service override configuration
+  copy:
+    src: ../files/docker-override.conf
+    dest: /etc/systemd/system/docker.service.d/override.conf
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copy docker daemon configuration
+  copy:
+    src: ../files/docker-daemon.json
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: 644
+
+- name: Start docker service
+  service:
+    name: docker
+    state: started
+  when: services['docker.service'] == None or services['docker.service'].state != 'running'

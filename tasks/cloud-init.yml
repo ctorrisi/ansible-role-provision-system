@@ -1,0 +1,193 @@
+---
+- name: Configure cloud-init main configuration
+  copy:
+    dest: /etc/cloud/cloud.cfg
+    mode: 0644
+    content: |
+      # Cloud-init configuration for multi-platform support
+      users:
+       - default
+
+      disable_root: false
+      ssh_pwauth: false
+
+      mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
+      resize_rootfs_tmp: /dev
+      ssh_deletekeys: true
+      ssh_genkeytypes: ~
+      syslog_fix_perms: ~
+      disable_vmware_customization: false
+
+      cloud_init_modules:
+       - migrator
+       - seed_random
+       - bootcmd
+       - write-files
+       - growpart
+       - resizefs
+       - disk_setup
+       - mounts
+       - set_hostname
+       - update_hostname
+       - update_etc_hosts
+       - ca-certs
+       - rsyslog
+       - users-groups
+       - ssh
+
+      cloud_config_modules:
+       - emit_upstart
+       - snap
+       - ssh-import-id
+       - locale
+       - set-passwords
+       - grub-dpkg
+       - apt-pipelining
+       - apt-configure
+       - ubuntu-advantage
+       - ntp
+       - timezone
+       - disable-ec2-metadata
+       - runcmd
+       - byobu
+
+      cloud_final_modules:
+       - package-update-upgrade-install
+       - fan
+       - landscape
+       - lxd
+       - ubuntu-drivers
+       - puppet
+       - chef
+       - mcollective
+       - salt-minion
+       - rightscale_userdata
+       - scripts-vendor
+       - scripts-per-once
+       - scripts-per-boot
+       - scripts-per-instance
+       - scripts-user
+       - ssh-authkey-fingerprints
+       - keys-to-console
+       - phone-home
+       - final-message
+       - power-state-change
+
+      system_info:
+        default_user:
+          name: admin
+          lock_passwd: true
+          gecos: Cloud User
+          groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
+          sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+          shell: /bin/bash
+        distro: ubuntu
+        paths:
+          cloud_dir: /var/lib/cloud/
+          run_dir: /run/cloud-init/
+        ssh_svcname: ssh
+
+- name: Configure cloud-init datasource configuration
+  copy:
+    dest: /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+    mode: 0644
+    content: |
+      # Multi-platform datasource configuration
+      datasource_list: [
+        NoCloud,
+        ConfigDrive,
+        OpenNebula,
+        DigitalOcean,
+        Azure,
+        AltCloud,
+        OVF,
+        MAAS,
+        GCE,
+        OpenStack,
+        CloudSigma,
+        SmartOS,
+        Bigstep,
+        Scaleway,
+        AliYun,
+        Ec2,
+        CloudStack,
+        Hetzner,
+        IBMCloud,
+        Oracle,
+        Exoscale,
+        RbxCloud,
+        UpCloud,
+        VMware,
+        Vultr,
+        LXD,
+        None
+      ]
+
+- name: Configure VMware datasource settings
+  copy:
+    dest: /etc/cloud/cloud.cfg.d/99-vmware.cfg
+    mode: 0644
+    content: |
+      # VMware vSphere configuration
+      datasource:
+        VMware:
+          allow_raw_data: true
+          vmware_cust_file_max_wait: 15
+
+- name: Configure network settings for cloud-init
+  copy:
+    dest: /etc/cloud/cloud.cfg.d/99-network.cfg
+    mode: 0644
+    content: |
+      # Network configuration
+      network:
+        config: disabled
+      
+      # Preserve our custom DNS configuration
+      manage_resolv_conf: false
+
+- name: Create cloud-init preserve directory
+  file:
+    path: /etc/cloud/cloud.cfg.d
+    state: directory
+    mode: 0755
+
+- name: Preserve custom configurations from cloud-init overwrite
+  copy:
+    dest: /etc/cloud/cloud.cfg.d/99-preserve-configs.cfg
+    mode: 0644
+    content: |
+      # Preserve our custom configurations
+      preserve_sources_list: true
+      
+      # Don't let cloud-init manage these services/configs
+      unverified_modules: []
+      
+      # Custom runcmd to ensure our services start properly
+      runcmd:
+        - systemctl daemon-reload
+        - systemctl restart dnscrypt-proxy
+        - systemctl restart dnsmasq
+        - systemctl restart docker
+        - systemctl restart firewall-manager
+
+- name: Clean cloud-init state for image preparation
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/cloud/instance
+    - /var/lib/cloud/instances
+    - /var/log/cloud-init.log
+    - /var/log/cloud-init-output.log
+  when: ansible_hostname == "localhost" or "packer" in ansible_hostname
+
+- name: Ensure cloud-init services are enabled
+  service:
+    name: "{{ item }}"
+    enabled: yes
+  loop:
+    - cloud-init-local
+    - cloud-init
+    - cloud-config
+    - cloud-final
