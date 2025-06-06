@@ -2,7 +2,6 @@
 - name: Install base system packages
   package:
     name:
-      - conntrack-tools
       - cloud-init
       - docker
       - dnscrypt-proxy

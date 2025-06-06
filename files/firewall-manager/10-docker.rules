@@ -1,19 +1,7 @@
-# Docker rules optimized for maximum performance
-# Completely bypasses conntrack for Docker traffic
-
-*raw
-:PREROUTING ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
-# Bypass conntrack entirely for Docker traffic (maximum performance)
--A PREROUTING -i docker+ -j CT --notrack
-COMMIT
-
 *filter
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
-# Docker interface handling - accept all traffic on docker interfaces
-# Insert at the beginning to process before other rules
 -I INPUT 1 -i docker+ -j ACCEPT
 -I FORWARD 1 -i docker+ -j ACCEPT
 -I FORWARD 1 -o docker+ -j ACCEPT
