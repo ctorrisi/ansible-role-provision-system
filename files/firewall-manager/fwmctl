@@ -122,10 +122,10 @@ show_status() {
     done
     echo
     if iptables -L "$FALLBACK_CHAIN" >/dev/null 2>&1; then
-        echo "⚠️  FALLBACK MODE: Firewall is running in permissive mode"
+        echo "FALLBACK MODE: Firewall is running in permissive mode"
         echo "   Run 'fwmctl harden' to enable restrictive mode"
     else
-        echo "🔒 RESTRICTIVE MODE: Firewall is hardened"
+        echo "RESTRICTIVE MODE: Firewall is hardened"
     fi
 }
 
@@ -151,6 +151,61 @@ restore_backup() {
     log "Rules restored successfully"
 }
 
+# Cleanup/reset firewall to permissive state
+cleanup_firewall() {
+    log "Cleaning up firewall - resetting to permissive state..."
+
+    # Backup current rules before cleanup
+    backup_rules
+
+    # Set default policies to ACCEPT for all chains in filter table
+    log "Setting default policies to ACCEPT..."
+    iptables -P INPUT ACCEPT 2>/dev/null || true
+    iptables -P FORWARD ACCEPT 2>/dev/null || true
+    iptables -P OUTPUT ACCEPT 2>/dev/null || true
+
+    # Flush all rules from all tables
+    log "Flushing all iptables rules..."
+
+    # Filter table
+    iptables -t filter -F 2>/dev/null || true
+    iptables -t filter -X 2>/dev/null || true
+
+    # NAT table (if it exists)
+    iptables -t nat -F 2>/dev/null || true
+    iptables -t nat -X 2>/dev/null || true
+    iptables -t nat -P PREROUTING ACCEPT 2>/dev/null || true
+    iptables -t nat -P INPUT ACCEPT 2>/dev/null || true
+    iptables -t nat -P OUTPUT ACCEPT 2>/dev/null || true
+    iptables -t nat -P POSTROUTING ACCEPT 2>/dev/null || true
+
+    # Mangle table
+    iptables -t mangle -F 2>/dev/null || true
+    iptables -t mangle -X 2>/dev/null || true
+    iptables -t mangle -P PREROUTING ACCEPT 2>/dev/null || true
+    iptables -t mangle -P INPUT ACCEPT 2>/dev/null || true
+    iptables -t mangle -P FORWARD ACCEPT 2>/dev/null || true
+    iptables -t mangle -P OUTPUT ACCEPT 2>/dev/null || true
+    iptables -t mangle -P POSTROUTING ACCEPT 2>/dev/null || true
+
+    # Raw table
+    iptables -t raw -F 2>/dev/null || true
+    iptables -t raw -X 2>/dev/null || true
+    iptables -t raw -P PREROUTING ACCEPT 2>/dev/null || true
+    iptables -t raw -P OUTPUT ACCEPT 2>/dev/null || true
+
+    # Security table (if it exists)
+    iptables -t security -F 2>/dev/null || true
+    iptables -t security -X 2>/dev/null || true
+    iptables -t security -P INPUT ACCEPT 2>/dev/null || true
+    iptables -t security -P FORWARD ACCEPT 2>/dev/null || true
+    iptables -t security -P OUTPUT ACCEPT 2>/dev/null || true
+
+    log "Firewall cleanup completed - all rules flushed, policies set to ACCEPT"
+    log "WARNING: Firewall is now in completely permissive mode!"
+    log "Use 'fwmctl start' or 'fwmctl apply' to reapply security rules"
+}
+
 # Main function
 main() {
     check_root
@@ -158,7 +213,7 @@ main() {
     setup_directories
 
     case "${1:-start}" in
-        start)
+        start|apply)
             log "Starting firewall manager..."
             backup_rules
             apply_base_rules
@@ -172,6 +227,12 @@ main() {
             apply_base_rules
             apply_modular_rules
             log "Firewall manager reloaded successfully"
+            ;;
+
+        stop|reset|cleanup)
+            log "Stopping firewall manager..."
+            cleanup_firewall
+            log "Firewall manager stopped successfully"
             ;;
 
         harden)
@@ -196,10 +257,14 @@ main() {
             ;;
 
         *)
-            echo "Usage: $0 {start|reload|harden|status|backup|restore}"
+            echo "Usage: $0 {start|apply|stop|reset|cleanup|reload|harden|status|backup|restore}"
             echo
             echo "Commands:"
             echo "  start   - Apply base rules and all modular rules"
+            echo "  apply   - Alias for start"
+            echo "  stop    - Reset firewall to permissive state (flush all rules)"
+            echo "  reset   - Alias for stop"
+            echo "  cleanup - Alias for stop"
             echo "  reload  - Reload all firewall rules"
             echo "  harden  - Remove fallback chain (enable restrictive mode)"
             echo "  status  - Show current firewall status"
