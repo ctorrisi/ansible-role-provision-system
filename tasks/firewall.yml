@@ -9,6 +9,7 @@
   with_items:
     - /etc/firewall-manager
     - /etc/firewall-manager/rules.d
+    - /var/backups
 
 - name: Install firewall management control script
   copy:
@@ -41,13 +42,6 @@
     owner: root
     group: root
     mode: 0600
-
-- name: Disable legacy iptables service if present
-  systemd:
-    name: iptables
-    enabled: no
-    state: stopped
-  failed_when: false
 
 - name: Enable and start firewall-manager service
   systemd:
