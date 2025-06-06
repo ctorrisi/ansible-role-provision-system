@@ -131,8 +131,8 @@ show_status() {
 
 # Backup current rules
 backup_rules() {
-    local backup_file="/var/backups/firewall-manager-$(date +%Y%m%d-%H%M%S).rules"
-    mkdir -p /var/backups
+    local backup_file="/var/fwm-backups/firewall-manager-$(date +%Y%m%d-%H%M%S).rules"
+    mkdir -p /var/fwm-backups
     iptables-save > "$backup_file"
     log "Current rules backed up to $backup_file"
 }

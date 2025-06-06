@@ -15,12 +15,12 @@ ExecStop=/bin/true
 RemainAfterExit=yes
 TimeoutSec=30
 
-# Security settings
+# Security settings (fixed)
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/log /var/backups
+ReadWritePaths=/var/log /var/fwm-backups /etc/firewall-manager
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
 

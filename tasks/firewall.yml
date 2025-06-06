@@ -9,7 +9,7 @@
   with_items:
     - /etc/firewall-manager
     - /etc/firewall-manager/rules.d
-    - /var/backups
+    - /var/fwm-backups
 
 - name: Install firewall management control script
   copy:
