@@ -1,3 +1,10 @@
+*raw
+:PREROUTING ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+# Bypass conntrack for SYN packets (SYNPROXY will handle them)
+-A PREROUTING -p tcp -m tcp --syn -j CT --notrack
+COMMIT
+
 *mangle
 :PREROUTING ACCEPT [0:0]
 :INPUT ACCEPT [0:0]
