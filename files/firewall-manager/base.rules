@@ -53,18 +53,13 @@ COMMIT
 
 # ====== GLOBAL SYNPROXY PROTECTION ======
 # Handle ALL TCP SYNs with SYNPROXY (comprehensive SYN flood protection)
+-A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
 # Drop invalid packets after SYNPROXY processing
 -A INPUT -m conntrack --ctstate INVALID -j DROP
 # Block non-SYN packets trying to start NEW connections
 -A INPUT -p tcp ! --syn -m conntrack --ctstate NEW -j DROP
 
-# ====== FALLBACK CHAIN (TEMPORARY ACCEPT ALL) ======
-# This chain accepts all traffic initially - will be removed once other rules are loaded
--A fwm-fallback -j ACCEPT
-
-# ====== CHAIN PROCESSING ORDER ======
-# Process through fallback chain (will be replaced by modular rules)
 -A INPUT -j fwm-fallback
-
+-A fwm-fallback -j ACCEPT
 COMMIT
