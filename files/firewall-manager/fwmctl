@@ -233,8 +233,31 @@ debug_firewall() {
     ssh_port=$(ss -tlnp | grep ':22 ' | head -1 | awk '{print $4}' | cut -d':' -f2)
     if [[ -n "$ssh_port" ]]; then
         echo "SSH listening on port: $ssh_port"
-        echo "SSH rules in iptables:"
-        iptables -L INPUT -n -v | grep ":$ssh_port\|dpt:$ssh_port" || echo "  No SSH rules found - THIS IS WHY YOU'RE LOCKED OUT!"
+
+        # Check for explicit SSH rules
+        ssh_rules=$(iptables -L INPUT -n -v | grep ":$ssh_port\|dpt:$ssh_port")
+
+        # Check for fallback chain
+        fallback_exists=$(iptables -L "$FALLBACK_CHAIN" >/dev/null 2>&1 && echo "yes" || echo "no")
+
+        if [[ -n "$ssh_rules" ]]; then
+            echo "SSH rules in iptables:"
+            echo "$ssh_rules" | sed 's/^/  /'
+        elif [[ "$fallback_exists" == "yes" ]]; then
+            fallback_action=$(iptables -L "$FALLBACK_CHAIN" -n | grep -E "ACCEPT|DROP|REJECT" | head -1 | awk '{print $1}')
+            echo "SSH rules: None found, but fallback chain exists (permissive mode)"
+            echo "SSH connectivity: $fallback_action via fallback chain"
+            if [[ "$fallback_action" != "ACCEPT" ]]; then
+                echo "  WARNING: Fallback chain may block SSH!"
+            fi
+        else
+            echo "SSH rules in iptables: NONE FOUND"
+            default_policy=$(iptables -L INPUT | grep "Chain INPUT" | grep -o "policy [A-Z]*" | cut -d' ' -f2)
+            echo "Default INPUT policy: $default_policy"
+            if [[ "$default_policy" == "DROP" ]]; then
+                echo "  CRITICAL: No SSH rules and INPUT policy is DROP - YOU WILL BE LOCKED OUT!"
+            fi
+        fi
     else
         echo "SSH not running or not listening on port 22"
     fi
@@ -285,13 +308,61 @@ debug_firewall() {
 
     # SYNPROXY diagnostics
     echo "=== SYNPROXY DIAGNOSTICS ==="
+
+    # Check if SYNPROXY module is loaded
     if [[ -f /proc/net/stat/synproxy ]]; then
         echo "SYNPROXY module: LOADED"
         echo "SYNPROXY statistics:"
         cat /proc/net/stat/synproxy | sed 's/^/  /'
         echo
+
+        # Check for SYNPROXY rules
         echo "SYNPROXY rules in iptables:"
-        iptables -L INPUT -n -v | grep SYNPROXY | sed 's/^/  /' || echo "  No SYNPROXY rules found"
+        synproxy_rules=$(iptables -L INPUT -n -v | grep SYNPROXY || true)
+        if [[ -n "$synproxy_rules" ]]; then
+            echo "$synproxy_rules" | sed 's/^/  /'
+        else
+            echo "  No SYNPROXY rules found"
+        fi
+        echo
+
+        # Check required sysctl settings
+        echo "SYNPROXY kernel settings:"
+        echo "  nf_conntrack_tcp_loose: $(sysctl -n net/netfilter/nf_conntrack_tcp_loose 2>/dev/null || echo 'NOT SET')"
+        echo "  tcp_timestamps: $(sysctl -n net/ipv4/tcp_timestamps 2>/dev/null || echo 'NOT SET')"
+        echo "  nf_conntrack_max: $(sysctl -n net/netfilter/nf_conntrack_max 2>/dev/null || echo 'NOT SET')"
+
+        if [[ -f /sys/module/nf_conntrack/parameters/hashsize ]]; then
+            echo "  conntrack_hashsize: $(cat /sys/module/nf_conntrack/parameters/hashsize)"
+        else
+            echo "  conntrack_hashsize: NOT ACCESSIBLE"
+        fi
+        echo
+
+        # Check for specific issues
+        tcp_loose=$(sysctl -n net/netfilter/nf_conntrack_tcp_loose 2>/dev/null || echo "1")
+        if [[ "$tcp_loose" != "0" ]]; then
+            echo "ISSUE: nf_conntrack_tcp_loose should be 0 for SYNPROXY"
+            echo "  Fix: sysctl -w net/netfilter/nf_conntrack_tcp_loose=0"
+            echo
+        fi
+
+        timestamps=$(sysctl -n net/ipv4/tcp_timestamps 2>/dev/null || echo "0")
+        if [[ "$timestamps" != "1" ]]; then
+            echo "ISSUE: tcp_timestamps should be 1 for SYNPROXY"
+            echo "  Fix: sysctl -w net/ipv4/tcp_timestamps=1"
+            echo
+        fi
+
+        # Check if SYNPROXY rules are too broad
+        broad_rules=$(iptables -L INPUT -n | grep "SYNPROXY.*0.0.0.0/0.*0.0.0.0/0" | grep -v dport || true)
+        if [[ -n "$broad_rules" ]]; then
+            echo "WARNING: SYNPROXY rules without specific ports found"
+            echo "  SYNPROXY works best when targeted at specific services"
+            echo "  Consider adding --dport restrictions"
+            echo
+        fi
+
     else
         echo "SYNPROXY module: NOT LOADED"
         echo "To load: modprobe xt_SYNPROXY"
