@@ -1,7 +1,4 @@
 ---
-- name: Refresh service facts
-  service_facts:
-
 - name: Enable docker service
   service:
     name: docker
