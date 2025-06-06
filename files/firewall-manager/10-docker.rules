@@ -6,8 +6,6 @@
 :OUTPUT ACCEPT [0:0]
 # Bypass conntrack entirely for Docker traffic (maximum performance)
 -A PREROUTING -i docker+ -j CT --notrack
--A PREROUTING -o docker+ -j CT --notrack
--A OUTPUT -o docker+ -j CT --notrack
 COMMIT
 
 *filter
