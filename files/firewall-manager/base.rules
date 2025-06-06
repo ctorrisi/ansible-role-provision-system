@@ -1,13 +1,3 @@
-# Base firewall rules - applied first on all systems
-# Handles core security features: packet validation, SYNPROXY, conntrack
-
-*raw
-:PREROUTING ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
-# Bypass conntrack for SYN packets (SYNPROXY will handle them)
--A PREROUTING -p tcp -m tcp --syn -j CT --notrack
-COMMIT
-
 *mangle
 :PREROUTING ACCEPT [0:0]
 :INPUT ACCEPT [0:0]
@@ -51,15 +41,22 @@ COMMIT
 # Always accept loopback
 -A INPUT -i lo -j ACCEPT
 
-# ====== GLOBAL SYNPROXY PROTECTION ======
-# Handle ALL TCP SYNs with SYNPROXY (comprehensive SYN flood protection)
+# ====== ESTABLISHED/RELATED CONNECTIONS ======
+# Accept established and related connections BEFORE SYNPROXY
 -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
--A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
-# Drop invalid packets after SYNPROXY processing
+
+# ====== SYNPROXY PROTECTION ======
+# Handle TCP SYNs with SYNPROXY (SYN flood protection)
+# This must come after ESTABLISHED,RELATED but before other rules
+-A INPUT -p tcp -m tcp --syn -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
+
+# ====== POST-SYNPROXY CLEANUP ======
+# Drop invalid packets (including those rejected by SYNPROXY)
 -A INPUT -m conntrack --ctstate INVALID -j DROP
 # Block non-SYN packets trying to start NEW connections
 -A INPUT -p tcp ! --syn -m conntrack --ctstate NEW -j DROP
 
+# ====== FALLBACK CHAIN ======
 -A INPUT -j fwm-fallback
 -A fwm-fallback -j ACCEPT
 COMMIT
