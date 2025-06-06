@@ -3,30 +3,29 @@
   hosts: all
   become: yes
 
-  tasks:
-    - name: Gather service facts
-      service_facts:
+- name: Gather service facts
+  service_facts:
 
-    - name: Install base packages
-      include_tasks: tasks/packages.yml
+- name: Install base packages
+  include_tasks: packages.yml
 
-    - name: Configure cloud-init
-      include_tasks: tasks/cloud-init.yml
+- name: Configure cloud-init
+  include_tasks: cloud-init.yml
 
-    - name: Configure DNS
-      include_tasks: tasks/dns.yml
+- name: Configure DNS
+  include_tasks: dns.yml
 
-    - name: Configure networking
-      include_tasks: tasks/networking.yml
+- name: Configure networking
+  include_tasks: networking.yml
 
-    - name: Configure Docker
-      include_tasks: tasks/docker.yml
+- name: Configure Docker
+  include_tasks: docker.yml
 
-    - name: Configure users and security
-      include_tasks: tasks/users.yml
+- name: Configure users and security
+  include_tasks: users.yml
 
-    - name: Configure system tuning
-      include_tasks: tasks/system-tuning.yml
+- name: Configure system tuning
+  include_tasks: system-tuning.yml
 
-    - name: Configure firewall
-      include_tasks: tasks/firewall.yml
+- name: Configure firewall
+  include_tasks: firewall.yml
