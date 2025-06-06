@@ -1,8 +1,4 @@
 ---
-- name: System provisioning with cloud-init support
-  hosts: all
-  become: yes
-
 - name: Gather service facts
   service_facts:
 
