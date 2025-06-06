@@ -1,10 +1,9 @@
----
 - name: Configure cloud-init main configuration
   copy:
     dest: /etc/cloud/cloud.cfg
     mode: 0644
     content: |
-      # Cloud-init configuration for multi-platform support
+      # Cloud-init main configuration for openSUSE Tumbleweed
       users:
        - default
 
@@ -18,80 +17,6 @@
       syslog_fix_perms: ~
       disable_vmware_customization: false
 
-      cloud_init_modules:
-       - migrator
-       - seed_random
-       - bootcmd
-       - write-files
-       - growpart
-       - resizefs
-       - disk_setup
-       - mounts
-       - set_hostname
-       - update_hostname
-       - update_etc_hosts
-       - ca-certs
-       - rsyslog
-       - users-groups
-       - ssh
-
-      cloud_config_modules:
-       - emit_upstart
-       - snap
-       - ssh-import-id
-       - locale
-       - set-passwords
-       - grub-dpkg
-       - apt-pipelining
-       - apt-configure
-       - ubuntu-advantage
-       - ntp
-       - timezone
-       - disable-ec2-metadata
-       - runcmd
-       - byobu
-
-      cloud_final_modules:
-       - package-update-upgrade-install
-       - fan
-       - landscape
-       - lxd
-       - ubuntu-drivers
-       - puppet
-       - chef
-       - mcollective
-       - salt-minion
-       - rightscale_userdata
-       - scripts-vendor
-       - scripts-per-once
-       - scripts-per-boot
-       - scripts-per-instance
-       - scripts-user
-       - ssh-authkey-fingerprints
-       - keys-to-console
-       - phone-home
-       - final-message
-       - power-state-change
-
-      system_info:
-        default_user:
-          name: admin
-          lock_passwd: true
-          gecos: Cloud User
-          groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
-          sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-          shell: /bin/bash
-        distro: ubuntu
-        paths:
-          cloud_dir: /var/lib/cloud/
-          run_dir: /run/cloud-init/
-        ssh_svcname: ssh
-
-- name: Configure cloud-init datasource configuration
-  copy:
-    dest: /etc/cloud/cloud.cfg.d/90_dpkg.cfg
-    mode: 0644
-    content: |
       # Multi-platform datasource configuration
       datasource_list: [
         NoCloud,
@@ -123,12 +48,177 @@
         None
       ]
 
-- name: Configure VMware datasource settings
+      cloud_init_modules:
+       - migrator
+       - seed_random
+       - bootcmd
+       - write-files
+       - growpart
+       - resizefs
+       - disk_setup
+       - mounts
+       - set_hostname
+       - update_hostname
+       - update_etc_hosts
+       - ca-certs
+       - rsyslog
+       - users-groups
+       - ssh
+
+      cloud_config_modules:
+       - ssh-import-id
+       - locale
+       - set-passwords
+       - zypper-configure
+       - ntp
+       - timezone
+       - disable-ec2-metadata
+       - runcmd
+
+      cloud_final_modules:
+       - package-update-upgrade-install
+       - puppet
+       - chef
+       - mcollective
+       - salt-minion
+       - rightscale_userdata
+       - scripts-vendor
+       - scripts-per-once
+       - scripts-per-boot
+       - scripts-per-instance
+       - scripts-user
+       - ssh-authkey-fingerprints
+       - keys-to-console
+       - phone-home
+       - final-message
+       - power-state-change
+
+      system_info:
+        default_user:
+          name: admin
+          lock_passwd: true
+          gecos: Cloud User
+          groups: [users, wheel, dialout, cdrom, audio, video, plugdev]
+          sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+          shell: /bin/bash
+        distro: opensuse
+        paths:
+          cloud_dir: /var/lib/cloud/
+          run_dir: /run/cloud-init/
+        ssh_svcname: sshd
+        package_mirrors:
+          - arches: [x86_64]
+            failsafe:
+              primary: http://download.opensuse.org/tumbleweed/repo/oss/
+              security: http://download.opensuse.org/update/tumbleweed/
+
+- name: Configure cloud-init main configuration with disk setup
   copy:
-    dest: /etc/cloud/cloud.cfg.d/99-vmware.cfg
+    dest: /etc/cloud/cloud.cfg
     mode: 0644
     content: |
-      # VMware vSphere configuration
+      # Cloud-init configuration for openSUSE Tumbleweed with multi-platform support
+      users:
+       - default
+
+      disable_root: false
+      ssh_pwauth: false
+
+      mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
+      resize_rootfs_tmp: /dev
+      ssh_deletekeys: true
+      ssh_genkeytypes: ~
+      syslog_fix_perms: ~
+      disable_vmware_customization: false
+
+      # Disk and filesystem management
+      disk_setup:
+        /dev/sda:
+          table_type: 'gpt'
+          layout: true
+          overwrite: false
+
+      fs_setup:
+        - label: boot
+          filesystem: ext4
+          device: '/dev/sda1'
+        - label: swap
+          filesystem: swap
+          device: '/dev/vg0/swap'
+        - label: root
+          filesystem: btrfs
+          device: '/dev/vg0/root'
+
+      cloud_init_modules:
+       - migrator
+       - seed_random
+       - bootcmd
+       - write-files
+       - growpart
+       - resizefs
+       - disk_setup
+       - mounts
+       - set_hostname
+       - update_hostname
+       - update_etc_hosts
+       - ca-certs
+       - rsyslog
+       - users-groups
+       - ssh
+
+      cloud_config_modules:
+       - ssh-import-id
+       - locale
+       - set-passwords
+       - zypper-configure
+       - ntp
+       - timezone
+       - disable-ec2-metadata
+       - runcmd
+
+      cloud_final_modules:
+       - package-update-upgrade-install
+       - puppet
+       - chef
+       - mcollective
+       - salt-minion
+       - rightscale_userdata
+       - scripts-vendor
+       - scripts-per-once
+       - scripts-per-boot
+       - scripts-per-instance
+       - scripts-user
+       - ssh-authkey-fingerprints
+       - keys-to-console
+       - phone-home
+       - final-message
+       - power-state-change
+
+      system_info:
+        default_user:
+          name: admin
+          lock_passwd: true
+          gecos: Cloud User
+          groups: [users, wheel, dialout, cdrom, audio, video, plugdev]
+          sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+          shell: /bin/bash
+        distro: opensuse
+        paths:
+          cloud_dir: /var/lib/cloud/
+          run_dir: /run/cloud-init/
+        ssh_svcname: sshd
+        package_mirrors:
+          - arches: [x86_64]
+            failsafe:
+              primary: http://download.opensuse.org/tumbleweed/repo/oss/
+              security: http://download.opensuse.org/update/tumbleweed/
+
+- name: Configure VMware-specific cloud-init settings
+  copy:
+    dest: /etc/cloud/cloud.cfg.d/10-vmware.cfg
+    mode: 0644
+    content: |
+      # VMware vSphere specific configuration
       datasource:
         VMware:
           allow_raw_data: true
@@ -136,40 +226,79 @@
 
 - name: Configure network settings for cloud-init
   copy:
-    dest: /etc/cloud/cloud.cfg.d/99-network.cfg
+    dest: /etc/cloud/cloud.cfg.d/20-network.cfg
     mode: 0644
     content: |
-      # Network configuration
+      # Network configuration - preserve our custom DNS setup
       network:
         config: disabled
       
-      # Preserve our custom DNS configuration
+      # Don't let cloud-init manage DNS - we handle it with dnscrypt-proxy + dnsmasq
       manage_resolv_conf: false
 
-- name: Create cloud-init preserve directory
-  file:
-    path: /etc/cloud/cloud.cfg.d
-    state: directory
-    mode: 0755
-
-- name: Preserve custom configurations from cloud-init overwrite
+- name: Configure custom service preservation
   copy:
-    dest: /etc/cloud/cloud.cfg.d/99-preserve-configs.cfg
+    dest: /etc/cloud/cloud.cfg.d/99-custom-services.cfg
     mode: 0644
     content: |
-      # Preserve our custom configurations
+      # Preserve our custom configurations and services
       preserve_sources_list: true
       
-      # Don't let cloud-init manage these services/configs
-      unverified_modules: []
+      # Disk growth configuration for LVM + Btrfs (openSUSE default)
+      growpart:
+        mode: auto
+        devices: ['/']
+        ignore_growroot_disabled: false
       
-      # Custom runcmd to ensure our services start properly
+      # Ensure our custom services start properly after cloud-init
       runcmd:
         - systemctl daemon-reload
         - systemctl restart dnscrypt-proxy
         - systemctl restart dnsmasq
         - systemctl restart docker
         - systemctl restart firewall-manager
+        # Ensure LVM services are running
+        - systemctl enable --now lvm2-monitor
+        - systemctl enable --now lvm2-lvmpolld
+        # Auto-extend root filesystem if disk was expanded (Btrfs)
+        - |
+          if pvdisplay | grep -q "Free PE"; then
+            echo "Extending LVM and Btrfs filesystem" | logger -t cloud-init-custom
+            lvextend -l +100%FREE /dev/mapper/system-root || true
+            btrfs filesystem resize max / || true
+          fi
+
+- name: Configure openSUSE-specific package management
+  copy:
+    dest: /etc/cloud/cloud.cfg.d/30-opensuse-packages.cfg
+    mode: 0644
+    content: |
+      # openSUSE Tumbleweed package management configuration
+      package_update: true
+      package_upgrade: false
+      package_reboot_if_required: false
+      
+      # zypper specific settings
+      zypper:
+        repos:
+          - id: "repo-oss"
+            name: "Main Repository (OSS)"
+            baseurl: "http://download.opensuse.org/tumbleweed/repo/oss/"
+            enabled: true
+            autorefresh: true
+            gpgcheck: true
+          - id: "repo-non-oss"
+            name: "Main Repository (NON-OSS)"
+            baseurl: "http://download.opensuse.org/tumbleweed/repo/non-oss/"
+            enabled: true
+            autorefresh: true
+            gpgcheck: true
+          - id: "repo-update"
+            name: "Update Repository"
+            baseurl: "http://download.opensuse.org/update/tumbleweed/"
+            enabled: true
+            autorefresh: true
+            gpgcheck: true
 
 - name: Clean cloud-init state for image preparation
   file:
