@@ -1,0 +1,214 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Configuration
+FIREWALL_DIR="/etc/firewall-manager"
+RULES_DIR="/etc/firewall-manager/rules.d"
+BASE_RULES="$FIREWALL_DIR/base.rules"
+LOG_FILE="/var/log/firewall-manager.log"
+FALLBACK_CHAIN="fwm-fallback"
+
+# Logging function
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG_FILE"
+}
+
+# Error handling
+error_exit() {
+    log "ERROR: $1"
+    exit 1
+}
+
+# Check if running as root
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        error_exit "This script must be run as root"
+    fi
+}
+
+# Validate iptables availability
+check_iptables() {
+    if ! command -v iptables >/dev/null 2>&1; then
+        error_exit "iptables command not found"
+    fi
+    if ! command -v iptables-restore >/dev/null 2>&1; then
+        error_exit "iptables-restore command not found"
+    fi
+}
+
+# Create necessary directories
+setup_directories() {
+    mkdir -p "$FIREWALL_DIR" "$RULES_DIR"
+    chmod 700 "$FIREWALL_DIR" "$RULES_DIR"
+}
+
+# Apply base rules
+apply_base_rules() {
+    if [[ ! -f "$BASE_RULES" ]]; then
+        error_exit "Base rules file not found: $BASE_RULES"
+    fi
+
+    log "Applying base firewall rules..."
+    if ! iptables-restore < "$BASE_RULES"; then
+        error_exit "Failed to apply base rules"
+    fi
+    log "Base rules applied successfully"
+}
+
+# Apply modular rules in order
+apply_modular_rules() {
+    log "Applying modular rules from $RULES_DIR..."
+
+    # Find all .rules files and sort them numerically
+    local rule_files
+    mapfile -t rule_files < <(find "$RULES_DIR" -name "*.rules" -type f | sort -V)
+
+    if [[ ${#rule_files[@]} -eq 0 ]]; then
+        log "No modular rule files found in $RULES_DIR"
+        return 0
+    fi
+
+    for rule_file in "${rule_files[@]}"; do
+        local filename=$(basename "$rule_file")
+        log "Applying rules from $filename..."
+
+        # Validate file before applying
+        if ! iptables-restore --test < "$rule_file" >/dev/null 2>&1; then
+            log "WARNING: Skipping invalid rule file: $filename"
+            continue
+        fi
+
+        # Apply rules (append mode)
+        if ! iptables-restore --noflush < "$rule_file"; then
+            log "WARNING: Failed to apply rules from $filename"
+            continue
+        fi
+
+        log "Successfully applied rules from $filename"
+    done
+}
+
+# Remove fallback chain (make firewall restrictive)
+remove_fallback() {
+    log "Removing fallback chain to enable restrictive mode..."
+
+    # Check if fallback chain exists
+    if ! iptables -L "$FALLBACK_CHAIN" >/dev/null 2>&1; then
+        log "Fallback chain '$FALLBACK_CHAIN' not found, nothing to remove"
+        return 0
+    fi
+
+    # Remove references to fallback chain from INPUT
+    iptables -D INPUT -j "$FALLBACK_CHAIN" 2>/dev/null || true
+
+    # Flush and delete the fallback chain
+    iptables -F "$FALLBACK_CHAIN" 2>/dev/null || true
+    iptables -X "$FALLBACK_CHAIN" 2>/dev/null || true
+
+    log "Fallback chain removed - firewall is now in restrictive mode"
+}
+
+# Show current firewall status
+show_status() {
+    echo "=== Firewall Manager Status ==="
+    echo
+    echo "Filter table:"
+    iptables -t filter -L -n -v
+    echo
+    echo "Available rule files:"
+    find "$RULES_DIR" -name "*.rules" -type f | sort -V | while read -r file; do
+        echo "  $(basename "$file")"
+    done
+    echo
+    if iptables -L "$FALLBACK_CHAIN" >/dev/null 2>&1; then
+        echo "⚠️  FALLBACK MODE: Firewall is running in permissive mode"
+        echo "   Run 'fwmctl harden' to enable restrictive mode"
+    else
+        echo "🔒 RESTRICTIVE MODE: Firewall is hardened"
+    fi
+}
+
+# Backup current rules
+backup_rules() {
+    local backup_file="/var/backups/firewall-manager-$(date +%Y%m%d-%H%M%S).rules"
+    mkdir -p /var/backups
+    iptables-save > "$backup_file"
+    log "Current rules backed up to $backup_file"
+}
+
+# Restore from backup
+restore_backup() {
+    local backup_file="$1"
+    if [[ ! -f "$backup_file" ]]; then
+        error_exit "Backup file not found: $backup_file"
+    fi
+
+    log "Restoring firewall rules from $backup_file..."
+    if ! iptables-restore < "$backup_file"; then
+        error_exit "Failed to restore from backup"
+    fi
+    log "Rules restored successfully"
+}
+
+# Main function
+main() {
+    check_root
+    check_iptables
+    setup_directories
+
+    case "${1:-start}" in
+        start)
+            log "Starting firewall manager..."
+            backup_rules
+            apply_base_rules
+            apply_modular_rules
+            log "Firewall manager started successfully"
+            ;;
+
+        reload)
+            log "Reloading firewall manager..."
+            backup_rules
+            apply_base_rules
+            apply_modular_rules
+            log "Firewall manager reloaded successfully"
+            ;;
+
+        harden)
+            log "Hardening firewall (removing fallback chain)..."
+            remove_fallback
+            log "Firewall hardened successfully"
+            ;;
+
+        status)
+            show_status
+            ;;
+
+        backup)
+            backup_rules
+            ;;
+
+        restore)
+            if [[ -z "${2:-}" ]]; then
+                error_exit "Usage: $0 restore <backup_file>"
+            fi
+            restore_backup "$2"
+            ;;
+
+        *)
+            echo "Usage: $0 {start|reload|harden|status|backup|restore}"
+            echo
+            echo "Commands:"
+            echo "  start   - Apply base rules and all modular rules"
+            echo "  reload  - Reload all firewall rules"
+            echo "  harden  - Remove fallback chain (enable restrictive mode)"
+            echo "  status  - Show current firewall status"
+            echo "  backup  - Backup current rules"
+            echo "  restore - Restore from backup file"
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function
+main "$@"

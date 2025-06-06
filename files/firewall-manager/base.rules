@@ -1,0 +1,70 @@
+# Base firewall rules - applied first on all systems
+# Handles core security features: packet validation, SYNPROXY, conntrack
+
+*raw
+:PREROUTING ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+# Bypass conntrack for SYN packets (SYNPROXY will handle them)
+-A PREROUTING -p tcp -m tcp --syn -j CT --notrack
+COMMIT
+
+*mangle
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+# Accept loopback traffic early
+-A PREROUTING -i lo -j ACCEPT
+
+# ====== ENHANCED PACKET VALIDATION ======
+# Ensure NEW connections start with proper SYN
+-A PREROUTING -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP
+# Drop NULL packets (all flags off)
+-A PREROUTING -p tcp --tcp-flags ALL NONE -j DROP
+# Drop XMAS packets (scan protection)
+-A PREROUTING -p tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,PSH,URG -j DROP
+# Block packets with bogus TCP flags
+-A PREROUTING -p tcp --tcp-flags ALL ACK,RST,SYN,FIN -j DROP
+# Drop packets with suspicious TTL values (likely spoofed)
+-A PREROUTING -m ttl --ttl-lt 64 -j DROP
+
+# ====== NETWORK ABUSE PROTECTION ======
+# Block broadcast/multicast abuse
+-A PREROUTING -m addrtype --dst-type BROADCAST -j DROP
+-A PREROUTING -m addrtype --dst-type MULTICAST -j DROP
+# Block bogon networks
+-A PREROUTING -s 224.0.0.0/3 -j DROP
+-A PREROUTING -s 127.0.0.0/8 ! -i lo -j DROP
+# Block fragmented packets
+-A PREROUTING -f -j DROP
+COMMIT
+
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+:fwm-fallback - [0:0]
+
+# ====== TRUSTED INTERFACES ======
+# Always accept loopback
+-A INPUT -i lo -j ACCEPT
+
+# ====== GLOBAL SYNPROXY PROTECTION ======
+# Handle ALL TCP SYNs with SYNPROXY (comprehensive SYN flood protection)
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
+# Drop invalid packets after SYNPROXY processing
+-A INPUT -m conntrack --ctstate INVALID -j DROP
+# Block non-SYN packets trying to start NEW connections
+-A INPUT -p tcp ! --syn -m conntrack --ctstate NEW -j DROP
+
+# ====== FALLBACK CHAIN (TEMPORARY ACCEPT ALL) ======
+# This chain accepts all traffic initially - will be removed once other rules are loaded
+-A fwm-fallback -j ACCEPT
+
+# ====== CHAIN PROCESSING ORDER ======
+# Process through fallback chain (will be replaced by modular rules)
+-A INPUT -j fwm-fallback
+
+COMMIT

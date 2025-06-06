@@ -1,0 +1,28 @@
+[Unit]
+Description=Firewall Manager Control System
+Documentation=man:iptables(8)
+DefaultDependencies=no
+After=network-pre.target systemd-modules-load.service local-fs.target
+Before=network.target shutdown.target
+Conflicts=shutdown.target
+ConditionPathExists=/etc/firewall-manager/
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/fwmctl start
+ExecReload=/usr/local/bin/fwmctl reload
+ExecStop=/bin/true
+RemainAfterExit=yes
+TimeoutSec=30
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log /var/backups
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

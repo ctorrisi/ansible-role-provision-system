@@ -1,5 +1,1 @@
 ---
-manage_swap_file: false
-swap_file_path: /swapfile
-swap_file_size_mb: '2048'
-disable_dvd_repo: true

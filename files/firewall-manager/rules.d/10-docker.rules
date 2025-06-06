@@ -1,0 +1,24 @@
+# Docker rules optimized for maximum performance
+# Completely bypasses conntrack for Docker traffic
+
+*raw
+# Bypass conntrack entirely for Docker traffic (maximum performance)
+-A PREROUTING -i docker+ -j CT --notrack
+-A PREROUTING -o docker+ -j CT --notrack
+-A OUTPUT -o docker+ -j CT --notrack
+COMMIT
+
+*mangle
+# Block RFC1918 private addresses from external interfaces (excluding docker interfaces)
+-A PREROUTING ! -i lo ! -i docker+ -s 10.0.0.0/8 -j DROP
+-A PREROUTING ! -i lo ! -i docker+ -s 172.16.0.0/12 -j DROP
+-A PREROUTING ! -i lo ! -i docker+ -s 192.168.0.0/16 -j DROP
+COMMIT
+
+*filter
+# Docker interface handling - accept all traffic on docker interfaces
+# These rules process very quickly since conntrack is bypassed
+-I INPUT 1 -i docker+ -j ACCEPT
+-I FORWARD 1 -i docker+ -j ACCEPT
+-I FORWARD 1 -o docker+ -j ACCEPT
+COMMIT

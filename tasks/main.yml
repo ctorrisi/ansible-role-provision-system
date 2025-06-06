@@ -1,17 +1,11 @@
 ---
-- name: zypper | Disable openSUSE DVD repository
-  shell: zypper mr -d $(zypper repos | awk '$3 ~ /^openSUSE-[0-9]+-[0-9]+/{print $1}')
-  when: disable_dvd_repo and ansible_facts['os_family'] == "Suse"
-
-- name: packages | Install systemd-network, docker, iptables, ipset, dnsmasq, dnscrypt-proxy
+- name: packages | Install systemd-network, docker, iptables, dnsmasq, dnscrypt-proxy
   package:
     name:
       - docker
       - dnscrypt-proxy
       - dnsmasq
       - unzip
-      - iptables
-      - ipset
     state: present
 
 - name: facts | Gather service facts
@@ -130,10 +124,32 @@
     exclusive: True
   when: authorized_keys_base64 != None
 
-- name: swap | Manage swap file
-  include_tasks:
-    file: swapfile.yml
-  when: manage_swap_file
+- name: netfilter | Set nf_conntrack parameters
+  copy:
+    dest: /etc/modprobe.d/99-nf_conntrack.conf
+    content: |
+      options nf_conntrack hashsize=250000
+    owner: root
+    group: root
+    mode: 0644
+
+- name: netfilter | Load nf_conntrack modules
+  copy:
+    dest: /etc/modules-load.d/nf_conntrack.conf
+    content: |
+      nf_conntrack
+      nf_conntrack_ipv4
+      nf_conntrack_ipv6
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable and start systemd-modules-load.service
+  systemd:
+    name: systemd-modules-load
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
 
 - name: sysctl | Copy 99-sysctl.conf
   copy:
@@ -144,84 +160,6 @@
 - name: sysctl | Reload sysctl
   command: sysctl --system
   when: sysctl is changed
-
-- name: sysctl | Add the nf_conntrack module
-  modprobe:
-    name: nf_conntrack
-    state: present
-
-- name: sysctl | Set nf_conntrack parameters
-  copy:
-    dest: /etc/modprobe.d/99-nf_conntrack.conf
-    content: |
-      options nf_conntrack hashsize=2500000
-
-- name: sysctl | Load nf_conntrack module
-  copy:
-    dest: /etc/modules-load.d/nf_conntrack.conf
-    content: |
-      nf_conntrack
-
-- name: sysctl | Enable and start systemd-modules-load.service
-  service:
-    name: systemd-modules-load
-    state: restarted
-    enabled: yes
-    daemon_reload: yes
-
-- name: sysctl | Copy nf_conntrack parameters script
-  copy:
-    dest: /etc/nf_conntrack-params.sh
-    content: |
-      sysctl -w net/netfilter/nf_conntrack_tcp_loose=0
-      sysctl -w net/netfilter/nf_conntrack_max=2000000
-      sysctl --system
-    mode: 0744
-
-- name: sysctl | Copy nf_conntrack parameters service
-  copy:
-    src: ../files/nf_conntrack-params.service
-    dest: /etc/systemd/system/nf_conntrack-params.service
-    owner: root
-    group: root
-    mode: 0644
-
-- name: sysctl | Enable and start nf_conntrack-params.service
-  service:
-    name: nf_conntrack-params
-    state: restarted
-    enabled: yes
-    daemon_reload: yes
-
-- name: sysctl | Reload sysctl
-  command: "{{ item }}"
-  loop:
-    - sysctl -w net.ipv4.route.flush=1
-    - sysctl -w net.ipv6.route.flush=1
-    - sysctl --system
-
-- name: thp | Create disable-transparent-huge-pages.service
-  copy:
-    src: ../files/disable-transparent-huge-pages.service
-    dest: /etc/systemd/system/disable-transparent-huge-pages.service
-    owner: root
-    group: root
-    mode: 0644
-
-- name: thp | Copy disable-transparent-huge-pages
-  copy:
-    src: ../files/disable-transparent-huge-pages
-    dest: /etc/disable-transparent-huge-pages
-    owner: root
-    group: root
-    mode: 0744
-
-- name: thp | Enable and start disable-transparent-huge-pages service
-  service:
-    name: disable-transparent-huge-pages
-    state: restarted
-    enabled: yes
-    daemon_reload: yes
 
 - name: iptables | Set xtables-nft-multi for iptables, iptables-save, and iptables-restore
   copy:
@@ -235,40 +173,59 @@
     - iptables-restore
     - iptables-save
 
-- name: iptables | Create iptables directory
+- name: firewall-manager | Create firewall directory structure
   file:
-    path: /etc/iptables
+    path: "{{ item }}"
     state: directory
+    owner: root
+    group: root
+    mode: 0700
+  with_items:
+    - /etc/firewall-manager
+    - /etc/firewall-manager/rules.d
+
+- name: firewall-manager | Install fwmctl script
+  copy:
+    src: ../files/firewall-manager/fwmctl
+    dest: /usr/local/bin/fwmctl
     owner: root
     group: root
     mode: 0755
 
-- name: iptables | Create iptables-startup.service
+- name: firewall-manager | Create firewall-manager.service
   copy:
-    src: ../files/iptables.service
-    dest: /etc/systemd/system/iptables.service
+    src: ../files/firewall-manager/firewall-manager.service
+    dest: /etc/systemd/system/firewall-manager.service
     owner: root
     group: root
     mode: 0644
 
-- name: iptables | Create iptables.service
+- name: firewall-manager | Copy base firewall rules
   copy:
-    src: ../files/iptables.service
-    dest: /etc/systemd/system/iptables.service
+    src: ../files/firewall-manager/base.rules
+    dest: /etc/firewall-manager/base.rules
     owner: root
     group: root
-    mode: 0644
+    mode: 0600
 
-- name: iptables | Copy iptables-base.rules
+- name: firewall-manager | Copy Docker rules
   copy:
-    src: ../files/iptables-base.rules
-    dest:  /etc/iptables/base.rules
+    src: ../files/firewall-manager/10-docker.rules
+    dest: /etc/firewall-manager/rules.d/10-docker.rules
     owner: root
     group: root
-    mode: 0644
+    mode: 0600
 
-- name: iptables | Enable iptables.service
-  service:
+- name: firewall-manager | Remove old iptables service if present
+  systemd:
     name: iptables
+    enabled: no
+    state: stopped
+  failed_when: false
+
+- name: firewall-manager | Enable and start firewall-manager.service
+  systemd:
+    name: firewall-manager
     enabled: yes
     daemon_reload: yes
+    state: started
