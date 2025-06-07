@@ -1,0 +1,270 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Configuration
+FIREWALL_DIR="/etc/nftables-firewall"
+RULES_DIR="/etc/nftables-firewall/rules.d"
+BASE_RULES="$FIREWALL_DIR/base.nft"
+LOG_FILE="/var/log/nftables-firewall.log"
+FALLBACK_CHAIN="nfw_fallback"
+TABLE_NAME="inet firewall"
+
+# Logging function
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG_FILE"
+}
+
+# Error handling
+error_exit() {
+    log "ERROR: $1"
+    exit 1
+}
+
+# Check if running as root
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        error_exit "This script must be run as root"
+    fi
+}
+
+# Validate nftables availability
+check_nftables() {
+    if ! command -v nft >/dev/null 2>&1; then
+        error_exit "nftables command not found"
+    fi
+
+    # Load nftables module if needed
+    if ! lsmod | grep -q nf_tables; then
+        log "Loading nftables kernel module..."
+        modprobe nf_tables || error_exit "Failed to load nftables module"
+    fi
+}
+
+# Apply base rules
+apply_base_rules() {
+    if [[ ! -f "$BASE_RULES" ]]; then
+        error_exit "Base rules file not found: $BASE_RULES"
+    fi
+
+    log "Applying base nftables rules..."
+
+    # Test rules syntax first
+    if ! nft -c -f "$BASE_RULES" 2>/dev/null; then
+        error_exit "Base rules syntax error. Check $BASE_RULES"
+    fi
+
+    # Apply rules
+    if ! nft -f "$BASE_RULES"; then
+        error_exit "Failed to apply base rules"
+    fi
+    log "Base rules applied successfully"
+}
+
+# Apply modular rules in order
+apply_modular_rules() {
+    log "Applying modular rules from $RULES_DIR..."
+
+    local rule_files
+    mapfile -t rule_files < <(find "$RULES_DIR" -name "*.nft" -type f | sort -V)
+
+    if [[ ${#rule_files[@]} -eq 0 ]]; then
+        log "No modular rule files found in $RULES_DIR"
+        return 0
+    fi
+
+    for rule_file in "${rule_files[@]}"; do
+        local filename=$(basename "$rule_file")
+        log "Applying rules from $filename..."
+
+        # Validate file before applying
+        if ! nft -c -f "$rule_file" >/dev/null 2>&1; then
+            log "WARNING: Skipping invalid rule file: $filename"
+            continue
+        fi
+
+        # Apply rules
+        if ! nft -f "$rule_file"; then
+            log "WARNING: Failed to apply rules from $filename"
+            continue
+        fi
+
+        log "Successfully applied rules from $filename"
+    done
+}
+
+# Remove fallback chain (make firewall restrictive)
+remove_fallback() {
+    log "Removing fallback chain to enable restrictive mode..."
+
+    if nft list chain "$TABLE_NAME" "$FALLBACK_CHAIN" >/dev/null 2>&1; then
+        # Remove jump to fallback chain first
+        nft delete rule "$TABLE_NAME" input handle $(nft -a list chain "$TABLE_NAME" input | grep "jump $FALLBACK_CHAIN" | awk '{print $NF}') 2>/dev/null || true
+
+        # Delete the fallback chain
+        nft delete chain "$TABLE_NAME" "$FALLBACK_CHAIN" 2>/dev/null || true
+
+        log "Fallback chain removed - firewall is now in restrictive mode"
+    else
+        log "Fallback chain '$FALLBACK_CHAIN' not found, nothing to remove"
+    fi
+}
+
+# Show current firewall status
+show_status() {
+    echo "=== nftables Firewall Status ==="
+    echo
+    echo "Current ruleset:"
+    nft list ruleset
+    echo
+    echo "Available rule files:"
+    find "$RULES_DIR" -name "*.nft" -type f | sort -V | while read -r file; do
+        echo "  $(basename "$file")"
+    done
+    echo
+    if nft list chain "$TABLE_NAME" "$FALLBACK_CHAIN" >/dev/null 2>&1; then
+        echo "FALLBACK MODE: Firewall is running in permissive mode"
+        echo "   Run 'nfwctl harden' to enable restrictive mode"
+    else
+        echo "RESTRICTIVE MODE: Firewall is hardened"
+    fi
+}
+
+# Backup current rules
+backup_rules() {
+    local backup_file="/var/nftables-firewall-backups/nftables-firewall-$(date +%Y%m%d-%H%M%S).nft"
+    mkdir -p /var/nftables-firewall-backups
+    nft list ruleset > "$backup_file"
+    log "Current rules backed up to $backup_file"
+}
+
+# Cleanup/reset firewall to permissive state
+cleanup_firewall() {
+    log "Cleaning up firewall - resetting to permissive state..."
+    backup_rules
+    log "Flushing all nftables rules..."
+    nft flush ruleset
+    log "Firewall cleanup completed - all rules flushed"
+    log "WARNING: Firewall is now in completely permissive mode!"
+}
+
+# Debug and diagnostics
+debug_firewall() {
+    echo "=== NFTABLES FIREWALL DEBUG ==="
+    echo "Timestamp: $(date)"
+    echo
+    echo "System: $(uname -r)"
+    echo "nftables: $(nft --version 2>/dev/null || echo 'Not available')"
+    echo
+    echo "Modules loaded:"
+    lsmod | grep -E "nf_tables|nft_" | head -10 | sed 's/^/  /' || echo "  No nftables modules"
+    echo
+    echo "Base rules validation:"
+    if [[ -f "$BASE_RULES" ]]; then
+        if nft -c -f "$BASE_RULES" >/dev/null 2>&1; then
+            echo "  Base rules: VALID"
+        else
+            echo "  Base rules: INVALID"
+            nft -c -f "$BASE_RULES" 2>&1 | sed 's/^/    /'
+        fi
+    else
+        echo "  Base rules: NOT FOUND"
+    fi
+    echo
+    echo "Modular rules validation:"
+    find "$RULES_DIR" -name "*.nft" -type f | sort -V | while read -r rule_file; do
+        filename=$(basename "$rule_file")
+        echo -n "  $filename: "
+        if nft -c -f "$rule_file" >/dev/null 2>&1; then
+            echo "VALID"
+        else
+            echo "INVALID"
+        fi
+    done
+    echo
+    echo "Conntrack status:"
+    if [[ -f /proc/sys/net/netfilter/nf_conntrack_count ]]; then
+        local current=$(cat /proc/sys/net/netfilter/nf_conntrack_count 2>/dev/null || echo "0")
+        local max=$(cat /proc/sys/net/netfilter/nf_conntrack_max 2>/dev/null || echo "unknown")
+        echo "  Active connections: $current/$max"
+    else
+        echo "  Connection tracking not available"
+    fi
+    echo
+    echo "Critical ports:"
+    for port in 22 80 443; do
+        if ss -tlnp | grep -q ":$port "; then
+            echo "  Port $port: LISTENING"
+            if nft list ruleset 2>/dev/null | grep -q "$port"; then
+                echo "    nftables rule: Found"
+            else
+                echo "    nftables rule: NONE (may be blocked)"
+            fi
+        else
+            echo "  Port $port: NOT LISTENING"
+        fi
+    done
+    echo
+    echo "=== END DEBUG ==="
+}
+
+# Main function
+main() {
+    check_root
+    check_nftables
+
+    case "${1:-start}" in
+        start|apply)
+            log "Starting nftables firewall..."
+            backup_rules
+            apply_base_rules
+            apply_modular_rules
+            log "nftables firewall started successfully"
+            ;;
+        reload)
+            log "Reloading nftables firewall..."
+            backup_rules
+            apply_base_rules
+            apply_modular_rules
+            log "nftables firewall reloaded successfully"
+            ;;
+        stop|reset|cleanup)
+            log "Stopping nftables firewall..."
+            cleanup_firewall
+            log "nftables firewall stopped successfully"
+            ;;
+        harden)
+            log "Hardening firewall..."
+            remove_fallback
+            log "Firewall hardened successfully"
+            ;;
+        status)
+            show_status
+            ;;
+        backup)
+            backup_rules
+            ;;
+        debug)
+            debug_firewall
+            ;;
+        *)
+            echo "Usage: $0 {start|apply|stop|reset|cleanup|reload|harden|status|backup|debug}"
+            echo
+            echo "Commands:"
+            echo "  start   - Apply base rules and all modular rules"
+            echo "  apply   - Alias for start"
+            echo "  stop    - Reset firewall to permissive state (flush all rules)"
+            echo "  reset   - Alias for stop"
+            echo "  cleanup - Alias for stop"
+            echo "  reload  - Reload all firewall rules"
+            echo "  harden  - Remove fallback chain (enable restrictive mode)"
+            echo "  status  - Show current firewall status"
+            echo "  backup  - Backup current rules"
+            echo "  debug   - Comprehensive diagnostics"
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function
+main "$@"

@@ -1,26 +1,26 @@
 [Unit]
-Description=Firewall Manager Control System
-Documentation=man:iptables(8)
+Description=nftables Firewall Control System
+Documentation=man:nft(8)
 DefaultDependencies=no
 After=network-pre.target systemd-modules-load.service local-fs.target
 Before=network.target shutdown.target
-Conflicts=shutdown.target
-ConditionPathExists=/etc/firewall-manager/
+Conflicts=shutdown.target iptables.service ip6tables.service firewalld.service ufw.service
+ConditionPathExists=/etc/nftables-firewall/
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/fwmctl start
-ExecReload=/usr/local/bin/fwmctl reload
+ExecStart=/usr/local/bin/nfwctl start
+ExecReload=/usr/local/bin/nfwctl reload
 ExecStop=/bin/true
 RemainAfterExit=yes
 TimeoutSec=30
 
-# Security settings (fixed)
+# Security settings
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/log /var/fwm-backups /etc/firewall-manager
+ReadWritePaths=/var/log /var/nftables-firewall-backups /etc/nftables-firewall
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
 

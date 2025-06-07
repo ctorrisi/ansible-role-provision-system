@@ -1,8 +1,0 @@
-*filter
-:INPUT ACCEPT [0:0]
-:FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
--I INPUT 1 -i docker+ -j ACCEPT
--I FORWARD 1 -i docker+ -j ACCEPT
--I FORWARD 1 -o docker+ -j ACCEPT
-COMMIT

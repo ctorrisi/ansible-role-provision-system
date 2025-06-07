@@ -1,5 +1,5 @@
 ---
-- name: Create firewall-manager directory structure
+- name: Create nftables-firewall directory structure
   file:
     path: "{{ item }}"
     state: directory
@@ -7,45 +7,46 @@
     group: root
     mode: 0700
   with_items:
-    - /etc/firewall-manager
-    - /etc/firewall-manager/rules.d
-    - /var/fwm-backups
+    - /etc/nftables-firewall
+    - /etc/nftables-firewall/rules.d
+    - /var/nftables-firewall-backups
 
-- name: Install firewall management control script
+- name: Install nftables firewall control script
   copy:
-    src: ../files/firewall-manager/fwmctl
-    dest: /usr/local/bin/fwmctl
+    src: ../files/nftables-firewall/nfwctl
+    dest: /usr/local/bin/nfwctl
     owner: root
     group: root
     mode: 0755
 
-- name: Create firewall-manager systemd service
+- name: Create nftables-firewall systemd service
   copy:
-    src: ../files/firewall-manager/firewall-manager.service
-    dest: /etc/systemd/system/firewall-manager.service
+    src: ../files/nftables-firewall/nftables-firewall.service
+    dest: /etc/systemd/system/nftables-firewall.service
     owner: root
     group: root
     mode: 0644
 
-- name: Copy base firewall rules
+- name: Create base nftables rules
   copy:
-    src: ../files/firewall-manager/base.rules
-    dest: /etc/firewall-manager/base.rules
+    src: ../files/nftables-firewall/base.nft
+    dest: /etc/nftables-firewall/base.nft
     owner: root
     group: root
     mode: 0600
 
-- name: Copy Docker-specific firewall rules
+- name: Create Docker-specific nftables rules
   copy:
-    src: ../files/firewall-manager/10-docker.rules
-    dest: /etc/firewall-manager/rules.d/10-docker.rules
+    src: ../files/nftables-firewall/10-docker.nft
+    dest: /etc/nftables-firewall/rules.d/10-docker.nft
     owner: root
     group: root
     mode: 0600
+  when: "'docker' in ansible_facts.services and ansible_facts.services['docker']['state'] == 'running'"
 
-- name: Enable and start firewall-manager service
+- name: Enable and start nftables-firewall service
   systemd:
-    name: firewall-manager
+    name: nftables-firewall
     enabled: yes
-    daemon_reload: yes
     state: started
+    daemon_reload: yes

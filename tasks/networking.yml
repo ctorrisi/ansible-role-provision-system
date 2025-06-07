@@ -16,6 +16,26 @@
     name: NetworkManager
     state: restarted
 
+- name: Configure netfilter connection tracking parameters
+  copy:
+    dest: /etc/modprobe.d/99-nf_conntrack.conf
+    content: |
+      options nf_conntrack hashsize=250000
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Configure netfilter modules to load at boot (includes nftables support)
+  copy:
+    dest: /etc/modules-load.d/nf_conntrack.conf
+    content: |
+      nf_conntrack
+      nf_conntrack_ipv4
+      nf_conntrack_ipv6
+    owner: root
+    group: root
+    mode: 0644
+
 - name: Enable and restart systemd-modules-load service
   systemd:
     name: systemd-modules-load
