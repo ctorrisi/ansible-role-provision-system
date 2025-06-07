@@ -1,12 +1,16 @@
 #!/usr/sbin/nft -f
-# Docker support for nftables firewall
 
-# Add rules to existing firewall table
+# Docker interface rules
 add rule inet firewall input iifname "docker*" accept comment "Allow Docker container traffic"
 add rule inet firewall forward iifname "docker*" accept comment "Allow Docker containers to communicate"
 add rule inet firewall forward oifname "docker*" accept comment "Allow traffic to Docker containers"
 
-# Docker bridge network support (works with existing ip_forward=1 sysctl)
-add rule inet firewall input ip saddr 172.16.0.0/12 accept comment "Docker private networks"
-add rule inet firewall forward ip saddr 172.16.0.0/12 accept comment "Docker bridge forwarding"
-add rule inet firewall forward ip daddr 172.16.0.0/12 accept comment "Traffic to Docker bridge"
+# Docker bridge networks
+add rule inet firewall input ip saddr 172.17.0.0/16 accept comment "Docker default bridge network"
+add rule inet firewall forward ip saddr 172.17.0.0/16 accept comment "Docker bridge forwarding"
+add rule inet firewall forward ip daddr 172.17.0.0/16 accept comment "Traffic to Docker bridge"
+
+# Docker custom networks
+add rule inet firewall input ip saddr 172.16.0.0/12 accept comment "Docker custom networks"
+add rule inet firewall forward ip saddr 172.16.0.0/12 accept comment "Docker custom network forwarding"
+add rule inet firewall forward ip daddr 172.16.0.0/12 accept comment "Traffic to Docker custom networks"
