@@ -42,7 +42,6 @@
     owner: root
     group: root
     mode: 0600
-  when: "'docker' in ansible_facts.services and ansible_facts.services['docker']['state'] == 'running'"
 
 - name: Enable and start nftables-firewall service
   systemd:
