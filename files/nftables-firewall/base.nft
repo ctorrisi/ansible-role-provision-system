@@ -26,6 +26,11 @@ table inet firewall {
         ct state {established, related} accept comment "Allow established connections"
         ct state invalid drop comment "Drop all invalid packets"
 
+        # ====== ICMP RATE LIMITING ======
+        # Still useful for preventing ICMP floods
+        icmp type echo-request limit rate 10/second burst 5 packets accept comment "Ping rate limit"
+        icmpv6 type echo-request limit rate 10/second burst 5 packets accept comment "IPv6 ping rate limit"
+
         # ====== MODERN RATE LIMITING ======
         # Simple, effective rate limiting instead of SYNPROXY complexity
         tcp flags syn limit rate 1000/second burst 100 packets accept comment "Allow rate-limited new TCP connections"

@@ -148,6 +148,80 @@ cleanup_firewall() {
     log "WARNING: Firewall is now in completely permissive mode!"
 }
 
+# Security status check
+security_status() {
+    echo "=== SECURITY STATUS ==="
+    echo "Timestamp: $(date)"
+    echo
+
+    # Check for security-related kernel messages
+    echo "Recent Security Events (last 100 kernel messages):"
+    dmesg | tail -100 | grep -iE "(drop|reject|invalid|attack|flood)" | tail -5 | while read -r line; do
+        echo "  $line"
+    done || echo "  No security events in recent kernel messages"
+    echo
+
+    # Connection statistics with security focus
+    if [[ -f /proc/sys/net/netfilter/nf_conntrack_count ]]; then
+        local current=$(cat /proc/sys/net/netfilter/nf_conntrack_count)
+        local max=$(cat /proc/sys/net/netfilter/nf_conntrack_max)
+        local percentage=$((current * 100 / max))
+        echo "Connection Tracking Status:"
+        echo "  Active connections: $current/$max (${percentage}%)"
+
+        if [[ $percentage -gt 80 ]]; then
+            echo "  WARNING: High connection usage detected!"
+        elif [[ $percentage -gt 50 ]]; then
+            echo "  NOTICE: Moderate connection usage"
+        else
+            echo "  STATUS: Normal connection usage"
+        fi
+    fi
+    echo
+
+    # Active network listeners
+    echo "Active Network Services:"
+    ss -tlnp | grep LISTEN | head -10 | while read -r line; do
+        echo "  $line"
+    done
+    echo
+
+    # Check for potential security issues
+    echo "Security Checks:"
+
+    # Check for unusual port listeners
+    local suspicious_ports=$(ss -tlnp | grep LISTEN | awk '{print $4}' | cut -d: -f2 | sort -n | grep -E "(1433|3389|5432|6379|27017|9200)" || true)
+    if [[ -n "$suspicious_ports" ]]; then
+        echo "  WARNING: Potentially suspicious ports listening: $suspicious_ports"
+    else
+        echo "  No suspicious ports detected"
+    fi
+
+    # Check firewall rule effectiveness
+    local total_rules=$(nft list ruleset | grep -c "^[[:space:]]*[^#]" || echo "0")
+    echo "  Active firewall rules: $total_rules"
+
+    # Check if fallback is enabled
+    if nft list chain "$TABLE_NAME" "$FALLBACK_CHAIN" >/dev/null 2>&1; then
+        echo "  WARNING: Firewall is in permissive mode (fallback enabled)"
+    else
+        echo "  Firewall is in restrictive mode (hardened)"
+    fi
+
+    # Memory pressure check
+    if [[ -f /proc/meminfo ]]; then
+        local available=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+        if [[ $available -lt 500000 ]]; then
+            echo "  WARNING: Low memory detected: ${available}KB available"
+        else
+            echo "  Memory status: OK (${available}KB available)"
+        fi
+    fi
+
+    echo
+    echo "=== END SECURITY STATUS ==="
+}
+
 # Debug and diagnostics
 debug_firewall() {
     echo "=== NFTABLES FIREWALL DEBUG ==="
@@ -192,7 +266,7 @@ debug_firewall() {
     fi
     echo
     echo "Critical ports:"
-    for port in 22 80 443; do
+    for port in 22 80 443 60022; do
         if ss -tlnp | grep -q ":$port "; then
             echo "  Port $port: LISTENING"
             if nft list ruleset 2>/dev/null | grep -q "$port"; then
@@ -204,6 +278,161 @@ debug_firewall() {
             echo "  Port $port: NOT LISTENING"
         fi
     done
+    echo "=== DETAILED CONNTRACK ANALYSIS ==="
+    echo "Timestamp: $(date)"
+    echo
+    # 1. Check if conntrack modules are loaded
+    echo "1. CONNTRACK MODULES:"
+    echo "Core conntrack modules:"
+    lsmod | grep -E "nf_conntrack|nf_nat" | while read -r line; do
+        echo "  $line"
+    done
+
+    if ! lsmod | grep -q "nf_conntrack"; then
+        echo "  WARNING: nf_conntrack module not loaded!"
+        echo "  Try: modprobe nf_conntrack"
+    fi
+    echo
+
+    # 2. Check conntrack tool availability
+    echo "2. CONNTRACK TOOLS:"
+    if command -v conntrack >/dev/null 2>&1; then
+        echo "  conntrack tool: Available ($(conntrack --version 2>/dev/null | head -1))"
+    else
+        echo "  conntrack tool: NOT AVAILABLE"
+        echo "  Install with: apt install conntrack-tools (Debian/Ubuntu) or zypper install conntrack-tools (openSUSE)"
+    fi
+    echo
+
+    # 3. Check conntrack statistics
+    echo "3. CONNTRACK STATISTICS:"
+    if [[ -f /proc/sys/net/netfilter/nf_conntrack_count ]]; then
+        local current=$(cat /proc/sys/net/netfilter/nf_conntrack_count 2>/dev/null || echo "0")
+        local max=$(cat /proc/sys/net/netfilter/nf_conntrack_max 2>/dev/null || echo "unknown")
+        echo "  Active connections: $current/$max"
+
+        # Calculate percentage if both values are available
+        if [[ "$current" != "0" && "$max" != "unknown" ]]; then
+            local percentage=$((current * 100 / max))
+            echo "  Usage: ${percentage}%"
+            if [[ $percentage -gt 80 ]]; then
+                echo "  WARNING: High conntrack usage!"
+            fi
+        fi
+    else
+        echo "  Connection tracking: NOT AVAILABLE"
+    fi
+    echo
+
+    # 4. Check conntrack table entries (if conntrack tool is available)
+    echo "4. ACTIVE CONNECTIONS:"
+    if command -v conntrack >/dev/null 2>&1; then
+        echo "  Connection breakdown:"
+        conntrack -L 2>/dev/null | head -10 | while read -r line; do
+            echo "    $line"
+        done
+
+        local tcp_count=$(conntrack -L -p tcp 2>/dev/null | wc -l)
+        local udp_count=$(conntrack -L -p udp 2>/dev/null | wc -l)
+        local icmp_count=$(conntrack -L -p icmp 2>/dev/null | wc -l)
+
+        echo "  Protocol summary:"
+        echo "    TCP connections: $tcp_count"
+        echo "    UDP connections: $udp_count"
+        echo "    ICMP connections: $icmp_count"
+    else
+        echo "  Cannot analyze connections without conntrack tool"
+    fi
+    echo
+
+    # 5. Check nftables conntrack rules
+    echo "5. NFTABLES CONNTRACK RULES:"
+    if nft list ruleset 2>/dev/null | grep -q "ct state"; then
+        echo "  Conntrack rules found:"
+        nft list ruleset 2>/dev/null | grep "ct state" | while read -r line; do
+            echo "    $line"
+        done
+    else
+        echo "  WARNING: No conntrack rules found in nftables!"
+    fi
+    echo
+
+    # 6. Test conntrack functionality
+    echo "6. CONNTRACK FUNCTIONALITY TEST:"
+
+    # Create a test connection and check if it's tracked
+    echo "  Testing SSH connection tracking..."
+    local ssh_connections=$(ss -tn | grep :22 | wc -l)
+    echo "    Active SSH connections: $ssh_connections"
+
+    if command -v conntrack >/dev/null 2>&1 && [[ $ssh_connections -gt 0 ]]; then
+        local tracked_ssh=$(conntrack -L -p tcp --dport 22 2>/dev/null | wc -l)
+        echo "    Tracked SSH connections: $tracked_ssh"
+
+        if [[ $tracked_ssh -eq 0 ]]; then
+            echo "    WARNING: SSH connections not being tracked!"
+        else
+            echo "    SUCCESS: SSH connections are being tracked"
+        fi
+    fi
+    echo
+
+    # 7. Check conntrack sysctls
+    echo "7. CONNTRACK SYSTEM SETTINGS:"
+    for sysctl in nf_conntrack_max nf_conntrack_tcp_timeout_established nf_conntrack_udp_timeout; do
+        local path="/proc/sys/net/netfilter/$sysctl"
+        if [[ -f "$path" ]]; then
+            local value=$(cat "$path" 2>/dev/null || echo "unreadable")
+            echo "  $sysctl: $value"
+        fi
+    done
+    echo
+
+    # 8. Performance indicators
+    echo "8. PERFORMANCE INDICATORS:"
+    if [[ -f /proc/net/stat/nf_conntrack ]]; then
+        echo "  Conntrack statistics available:"
+        head -2 /proc/net/stat/nf_conntrack | while read -r line; do
+            echo "    $line"
+        done
+    else
+        echo "  Detailed conntrack statistics not available"
+    fi
+    echo
+
+    # 9. Recommendations
+    echo "9. RECOMMENDATIONS:"
+
+    # Check if conntrack is actually being used
+    if ! lsmod | grep -q "nf_conntrack"; then
+        echo "  - Load conntrack module: modprobe nf_conntrack"
+    fi
+
+    if ! command -v conntrack >/dev/null 2>&1; then
+        echo "  - Install conntrack tools for better monitoring"
+    fi
+
+    if [[ -f /proc/sys/net/netfilter/nf_conntrack_count ]]; then
+        local current=$(cat /proc/sys/net/netfilter/nf_conntrack_count 2>/dev/null || echo "0")
+        if [[ "$current" == "0" ]]; then
+            echo "  - WARNING: No active connections tracked - conntrack may not be working"
+        fi
+    fi
+
+    # Check if firewall rules are using conntrack
+    if ! nft list ruleset 2>/dev/null | grep -q "ct state"; then
+        echo "  - Add conntrack rules to your firewall for stateful filtering"
+    fi
+
+    echo "  - Monitor conntrack usage regularly with: watch -n 1 'cat /proc/sys/net/netfilter/nf_conntrack_count'"
+
+    echo
+    echo "=== END CONNTRACK ANALYSIS ==="
+    echo
+
+    # Add security status to debug output
+    echo
+    security_status
     echo
     echo "=== END DEBUG ==="
 }
@@ -244,23 +473,27 @@ main() {
         backup)
             backup_rules
             ;;
+        security)
+            security_status
+            ;;
         debug)
             debug_firewall
             ;;
         *)
-            echo "Usage: $0 {start|apply|stop|reset|cleanup|reload|harden|status|backup|debug}"
+            echo "Usage: $0 {start|apply|stop|reset|cleanup|reload|harden|status|backup|security|debug}"
             echo
             echo "Commands:"
-            echo "  start   - Apply base rules and all modular rules"
-            echo "  apply   - Alias for start"
-            echo "  stop    - Reset firewall to permissive state (flush all rules)"
-            echo "  reset   - Alias for stop"
-            echo "  cleanup - Alias for stop"
-            echo "  reload  - Reload all firewall rules"
-            echo "  harden  - Remove fallback chain (enable restrictive mode)"
-            echo "  status  - Show current firewall status"
-            echo "  backup  - Backup current rules"
-            echo "  debug   - Comprehensive diagnostics"
+            echo "  start    - Apply base rules and all modular rules"
+            echo "  apply    - Alias for start"
+            echo "  stop     - Reset firewall to permissive state (flush all rules)"
+            echo "  reset    - Alias for stop"
+            echo "  cleanup  - Alias for stop"
+            echo "  reload   - Reload all firewall rules"
+            echo "  harden   - Remove fallback chain (enable restrictive mode)"
+            echo "  status   - Show current firewall status"
+            echo "  backup   - Backup current rules"
+            echo "  security - Show security status and recent events"
+            echo "  debug    - Comprehensive diagnostics including security analysis"
             exit 1
             ;;
     esac
