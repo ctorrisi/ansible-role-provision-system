@@ -2,6 +2,7 @@
 - name: Install base system packages
   package:
     name:
+      - kernel-longterm
       - cloud-init
       - docker
       - dnscrypt-proxy
@@ -11,6 +12,12 @@
       - wget
       - ca-certificates
     state: present
+
+- name: Remove kernel-default
+  package:
+    name:
+      - kernel-default
+    state: absent
 
 - name: Ensure cloud-init is enabled for boot
   service:
