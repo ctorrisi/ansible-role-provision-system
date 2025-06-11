@@ -1,0 +1,250 @@
+#!/bin/bash
+
+# Virtualization Driver Setup Script
+# Creates platform-specific /etc/modules-load.d/ configuration files
+
+LOG_TAG="virt-setup"
+
+log() {
+    echo "$1" | logger -t "$LOG_TAG"
+    echo "[$(date)] $1"
+}
+
+# Helper function to create module loading configuration
+create_module_config() {
+    local platform="$1"
+    local description="$2"
+    shift 2
+    local modules=("$@")
+
+    log "Creating module configuration for $platform"
+
+    {
+        echo "# $description"
+        for module in "${modules[@]}"; do
+            echo "$module"
+        done
+    } > "/etc/modules-load.d/${platform}.conf"
+}
+
+# Helper function to load modules
+load_modules() {
+    local modules=("$@")
+
+    for module in "${modules[@]}"; do
+        modprobe "$module" 2>/dev/null || true
+    done
+}
+
+# Helper function to enable services if they exist
+enable_services() {
+    local services=("$@")
+
+    for service in "${services[@]}"; do
+        if systemctl list-unit-files | grep -q "$service"; then
+            systemctl enable --now "$service"
+        fi
+    done
+}
+
+# Helper function to enable cloud-init services
+enable_cloud_init_services() {
+    log "Enabling cloud-init services"
+    systemctl enable cloud-init-local
+    systemctl enable cloud-init
+    systemctl enable cloud-config
+    systemctl enable cloud-final
+}
+
+detect_hypervisor() {
+    local virt_type=""
+
+    # Try systemd-detect-virt first
+    if command -v systemd-detect-virt >/dev/null 2>&1; then
+        virt_type=$(systemd-detect-virt)
+        if [[ "$virt_type" != "none" ]]; then
+            echo "$virt_type"
+            return 0
+        fi
+    fi
+
+    # Fallback to DMI detection
+    if [[ -r /sys/class/dmi/id/sys_vendor ]]; then
+        local vendor=$(cat /sys/class/dmi/id/sys_vendor)
+        case "$vendor" in
+            "VMware, Inc.")
+                echo "vmware"
+                return 0
+                ;;
+            "QEMU")
+                echo "qemu"
+                return 0
+                ;;
+            "Microsoft Corporation")
+                echo "microsoft"
+                return 0
+                ;;
+            "Xen")
+                echo "xen"
+                return 0
+                ;;
+            "Amazon EC2")
+                echo "amazon"
+                return 0
+                ;;
+            "Google")
+                echo "gcp"
+                return 0
+                ;;
+        esac
+    fi
+
+    # Check product name for additional detection
+    if [[ -r /sys/class/dmi/id/product_name ]]; then
+        local product=$(cat /sys/class/dmi/id/product_name)
+        case "$product" in
+            "Virtual Machine")
+                # Could be Azure or Hyper-V
+                if [[ -r /sys/class/dmi/id/sys_vendor ]] && grep -q "Microsoft Corporation" /sys/class/dmi/id/sys_vendor; then
+                    echo "azure"
+                    return 0
+                fi
+                ;;
+            "Google"|"Google Compute Engine")
+                echo "gcp"
+                return 0
+                ;;
+        esac
+    fi
+
+    # Check for specific files/devices and cloud metadata endpoints
+    if [[ -c /dev/vmci ]]; then
+        echo "vmware"
+    elif [[ -d /proc/xen ]]; then
+        echo "xen"
+    elif curl -s -f -m 2 http://169.254.169.254/metadata/instance?api-version=2021-02-01 -H "Metadata:true" >/dev/null 2>&1; then
+        echo "azure"
+    elif curl -s -f -m 2 http://metadata.google.internal/computeMetadata/v1/ -H "Metadata-Flavor: Google" >/dev/null 2>&1; then
+        echo "gcp"
+    elif curl -s -f -m 2 http://169.254.169.254/latest/meta-data/ >/dev/null 2>&1; then
+        echo "amazon"
+    elif grep -q "Amazon" /sys/class/dmi/id/bios_version 2>/dev/null; then
+        echo "amazon"
+    else
+        echo "unknown"
+    fi
+}
+
+setup_vmware() {
+    log "Setting up VMware guest tools"
+
+    local modules=("vmw_balloon" "vmw_pvscsi" "vmw_vmci" "vmwgfx")
+    local services=("vmtoolsd" "vgauthd")
+
+    create_module_config "vmware" "VMware guest modules" "${modules[@]}"
+    enable_services "${services[@]}"
+    load_modules "${modules[@]}"
+}
+
+setup_qemu_kvm() {
+    log "Setting up QEMU/KVM guest tools"
+
+    local modules=("virtio_balloon" "virtio_console" "virtio_net" "virtio_blk" "virtio_scsi")
+    local services=("qemu-guest-agent")
+
+    create_module_config "virtio" "Virtio guest modules (KVM/QEMU)" "${modules[@]}"
+    enable_services "${services[@]}"
+    load_modules "${modules[@]}"
+}
+
+setup_xen() {
+    log "Setting up Xen guest tools"
+
+    local modules=("xen_blkfront" "xen_netfront" "xen_pcifront")
+
+    create_module_config "xen" "Xen guest modules" "${modules[@]}"
+    load_modules "${modules[@]}"
+}
+
+setup_hyperv() {
+    log "Setting up Hyper-V guest tools"
+
+    local modules=("hv_balloon" "hv_utils" "hv_storvsc" "hv_netvsc")
+    local services=("hv-fcopy-daemon" "hv-kvp-daemon" "hv-vss-daemon")
+
+    create_module_config "hyperv" "Hyper-V guest modules" "${modules[@]}"
+    enable_services "${services[@]}"
+    load_modules "${modules[@]}"
+}
+
+setup_aws() {
+    log "Setting up AWS EC2 tools"
+
+    local modules=("ena" "nvme")
+
+    create_module_config "aws" "AWS/Nitro guest modules" "${modules[@]}"
+    enable_cloud_init_services
+    load_modules "${modules[@]}"
+}
+
+setup_azure() {
+    log "Setting up Azure guest tools"
+
+    local modules=("hv_balloon" "hv_utils" "hv_storvsc" "hv_netvsc")
+    local services=("waagent")
+
+    create_module_config "azure" "Azure guest modules (Hyper-V based)" "${modules[@]}"
+    enable_services "${services[@]}"
+    enable_cloud_init_services
+    load_modules "${modules[@]}"
+}
+
+setup_gcp() {
+    log "Setting up Google Cloud Platform guest tools"
+
+    local modules=("virtio_balloon" "virtio_console" "virtio_net" "virtio_blk" "virtio_scsi")
+    local services=("google-guest-agent" "google-startup-scripts" "google-shutdown-scripts")
+
+    create_module_config "gcp" "Google Cloud Platform guest modules (virtio-based)" "${modules[@]}"
+    enable_services "${services[@]}"
+    enable_cloud_init_services
+    load_modules "${modules[@]}"
+}
+
+main() {
+    local hypervisor=$(detect_hypervisor)
+    log "Detected hypervisor: $hypervisor"
+
+    case "$hypervisor" in
+        "vmware")
+            setup_vmware
+            ;;
+        "qemu"|"kvm")
+            setup_qemu_kvm
+            ;;
+        "xen")
+            setup_xen
+            ;;
+        "microsoft")
+            setup_hyperv
+            ;;
+        "amazon")
+            setup_aws
+            ;;
+        "azure")
+            setup_azure
+            ;;
+        "gcp")
+            setup_gcp
+            ;;
+        *)
+            log "Unknown or bare metal system, enabling basic cloud-init services only"
+            # Enable basic cloud-init services without platform-specific modules
+            enable_cloud_init_services
+            ;;
+    esac
+
+    log "Virtualization setup completed"
+}
+
+main "$@"

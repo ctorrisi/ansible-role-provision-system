@@ -2,15 +2,44 @@
 - name: Install base system packages
   package:
     name:
+      # Core system packages
       - kernel-longterm
       - cloud-init
+      - growpart
+
+      # Container and DNS services
       - docker
       - dnscrypt-proxy
       - dnsmasq
+
+      # Essential utilities for scripts
       - unzip
       - curl
+      - jq
       - wget
       - ca-certificates
+
+    state: present
+
+- name: Install virtualization guest tools and drivers
+  package:
+    name:
+      # VMware guest tools
+      - open-vm-tools
+
+      # KVM/QEMU guest tools
+      - qemu-guest-agent
+
+      # Hyper-V guest tools
+#      - hyper-v
+
+      # Xen guest tools
+      - xen-tools
+
+      # Google Cloud guest tools
+#      - google-guest-agent
+#      - google-guest-oslogin
+#      - google-guest-configs
     state: present
 
 - name: Remove kernel-default
@@ -18,8 +47,3 @@
     name:
       - kernel-default
     state: absent
-
-- name: Ensure cloud-init is enabled for boot
-  service:
-    name: cloud-init
-    enabled: yes
