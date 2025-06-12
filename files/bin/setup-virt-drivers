@@ -47,15 +47,6 @@ enable_services() {
     done
 }
 
-# Helper function to enable cloud-init services
-enable_cloud_init_services() {
-    log "Enabling cloud-init services"
-    systemctl enable cloud-init-local
-    systemctl enable cloud-init
-    systemctl enable cloud-config
-    systemctl enable cloud-final
-}
-
 detect_hypervisor() {
     local virt_type=""
 
@@ -68,7 +59,7 @@ detect_hypervisor() {
         fi
     fi
 
-    # Fallback to DMI detection
+    # Fallback to DMI detection for common platforms
     if [[ -r /sys/class/dmi/id/sys_vendor ]]; then
         local vendor=$(cat /sys/class/dmi/id/sys_vendor)
         case "$vendor" in
@@ -117,19 +108,17 @@ detect_hypervisor() {
         esac
     fi
 
-    # Check for specific files/devices and cloud metadata endpoints
-    if [[ -c /dev/vmci ]]; then
-        echo "vmware"
-    elif [[ -d /proc/xen ]]; then
-        echo "xen"
-    elif curl -s -f -m 2 http://169.254.169.254/metadata/instance?api-version=2021-02-01 -H "Metadata:true" >/dev/null 2>&1; then
+    # Check for cloud metadata endpoints as fallback
+    if curl -s -f -m 2 http://169.254.169.254/metadata/instance?api-version=2021-02-01 -H "Metadata:true" >/dev/null 2>&1; then
         echo "azure"
     elif curl -s -f -m 2 http://metadata.google.internal/computeMetadata/v1/ -H "Metadata-Flavor: Google" >/dev/null 2>&1; then
         echo "gcp"
     elif curl -s -f -m 2 http://169.254.169.254/latest/meta-data/ >/dev/null 2>&1; then
         echo "amazon"
-    elif grep -q "Amazon" /sys/class/dmi/id/bios_version 2>/dev/null; then
-        echo "amazon"
+    elif [[ -c /dev/vmci ]]; then
+        echo "vmware"
+    elif [[ -d /proc/xen ]]; then
+        echo "xen"
     else
         echo "unknown"
     fi
@@ -183,7 +172,6 @@ setup_aws() {
     local modules=("ena" "nvme")
 
     create_module_config "aws" "AWS/Nitro guest modules" "${modules[@]}"
-    enable_cloud_init_services
     load_modules "${modules[@]}"
 }
 
@@ -195,7 +183,6 @@ setup_azure() {
 
     create_module_config "azure" "Azure guest modules (Hyper-V based)" "${modules[@]}"
     enable_services "${services[@]}"
-    enable_cloud_init_services
     load_modules "${modules[@]}"
 }
 
@@ -207,7 +194,6 @@ setup_gcp() {
 
     create_module_config "gcp" "Google Cloud Platform guest modules (virtio-based)" "${modules[@]}"
     enable_services "${services[@]}"
-    enable_cloud_init_services
     load_modules "${modules[@]}"
 }
 
@@ -238,9 +224,7 @@ main() {
             setup_gcp
             ;;
         *)
-            log "Unknown or bare metal system, enabling basic cloud-init services only"
-            # Enable basic cloud-init services without platform-specific modules
-            enable_cloud_init_services
+            log "Unknown or bare metal system, no platform-specific drivers needed"
             ;;
     esac
 

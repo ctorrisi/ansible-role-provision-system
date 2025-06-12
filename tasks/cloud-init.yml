@@ -7,87 +7,68 @@
     group: root
     mode: "{{ item.mode }}"
   loop:
-    - { src: "setup-dns", dest: "/usr/local/bin/setup-dns", mode: "0755" }
-    - { src: "generate-docker-nft-rules", dest: "/usr/local/bin/generate-docker-nft-rules", mode: "0755" }
     - { src: "setup-virt-drivers", dest: "/usr/local/bin/setup-virt-drivers", mode: "0755" }
+    - { src: "setup-dns", dest: "/usr/local/bin/setup-dns", mode: "0755" }
 
-- name: Configure cloud-init main configuration with corrected filesystem support
+- name: Configure streamlined cloud-init configuration
   copy:
     dest: /etc/cloud/cloud.cfg
     mode: 0644
     content: |
-      # Multi-platform datasource configuration with improved detection
+      # Focused datasource configuration for enterprise deployment
       datasource_list: [
-        NoCloud,
-        ConfigDrive,
-        OpenNebula,
-        DigitalOcean,
-        Azure,
-        AltCloud,
-        OVF,
-        MAAS,
-        GCE,
-        OpenStack,
-        CloudSigma,
-        SmartOS,
-        Bigstep,
-        Scaleway,
-        AliYun,
-        Ec2,
-        CloudStack,
-        Hetzner,
-        IBMCloud,
-        Oracle,
-        Exoscale,
-        RbxCloud,
-        UpCloud,
-        VMware,
-        Vultr,
-        LXD,
-        None
+        NoCloud, ConfigDrive, OpenStack, Azure, GCE, Ec2, VMware, 
+        OVF, MAAS, CloudStack, Hetzner, Oracle, None
       ]
 
+      # Preserve existing configurations
+      preserve_sources_list: true
+
+      # Network configuration using NetworkManager
+      network:
+        renderers: ['NetworkManager']
+      
+      # Let our script handle DNS
+      manage_resolv_conf: false
+      
+      # Disk growth
+      growpart:
+        mode: auto
+        devices: ['/dev/sda']
+        ignore_growroot_disabled: false
+
+      # NTP configuration
+      ntp:
+        enabled: true
+        ntp_client: chrony
+        config:
+          confpath: /etc/chrony.d/pool.conf
+
+      # Core initialization modules
       cloud_init_modules:
        - migrator
        - seed_random
        - bootcmd
        - write-files
        - growpart
+       - resizefs
        - disk_setup
        - mounts
        - set_hostname
        - update_hostname
        - update_etc_hosts
-       - ca-certs
-       - rsyslog
        - users-groups
        - ssh
 
+      # Configuration modules
       cloud_config_modules:
-       - ssh-import-id
        - locale
-       - set-passwords
-       - zypper-configure
        - ntp
        - timezone
-       - disable-ec2-metadata
        - runcmd
 
+      # Final modules - minimal set for completion and debugging
       cloud_final_modules:
-       - package-update-upgrade-install
-       - puppet
-       - chef
-       - mcollective
-       - salt-minion
-       - rightscale_userdata
-       - scripts-vendor
-       - scripts-per-once
-       - scripts-per-boot
-       - scripts-per-instance
-       - scripts-user
-       - ssh-authkey-fingerprints
-       - keys-to-console
-       - phone-home
        - final-message
        - power-state-change
 
@@ -102,76 +83,20 @@
           sudo: ["ALL=(ALL) NOPASSWD:ALL"]
           shell: /bin/bash
 
-- name: Configure dynamic network and DNS settings
-  copy:
-    dest: /etc/cloud/cloud.cfg.d/20-network-dns.cfg
-    mode: 0644
-    content: |
-      # Network and DNS configuration - use NetworkManager with cloud-init
-      network:
-        renderers: ['NetworkManager']
-      
-      # DNS management - will be handled by our setup-dns script
-      manage_resolv_conf: false
-      
-      # NTP configuration - let cloud-init manage this entirely
-      ntp:
-        enabled: true
-        ntp_client: chrony
-        config:
-          confpath: /etc/chrony.d/pool.conf
-
-- name: Configure custom service preservation and initialization
-  copy:
-    dest: /etc/cloud/cloud.cfg.d/99-custom-services.cfg
-    mode: 0644
-    content: |
-      # Preserve our custom configurations and services
-      preserve_sources_list: true
-      
-      # Disk growth configuration for XFS on LVM (corrected)
-      growpart:
-        mode: auto
-        devices: ['/dev/sda']
-        ignore_growroot_disabled: false
-      
-      # Custom initialization and service management
+      # Custom initialization
       bootcmd:
-        # Setup virtualization drivers early
         - [/usr/local/bin/setup-virt-drivers]
       
       runcmd:
-        # Reload systemd after any changes
         - systemctl daemon-reload
-      
-        # Wait for any write_files operations to complete (especially docker-daemon.json)
         - sleep 2
-      
-        # Setup DNS configuration (reads Docker bridge IP from daemon.json)
         - /usr/local/bin/setup-dns
-      
-        # Restart services in correct order
         - systemctl restart nftables-firewall || true
         - systemctl restart docker || true
-      
-        # Ensure LVM services are running
-        - systemctl enable --now lvm2-monitor
-        - systemctl enable --now lvm2-lvmpolld
-      
-        # Auto-extend root filesystem if disk was expanded (XFS on LVM)
-        - |
-          echo "Checking for disk expansion" | logger -t cloud-init-custom
-          pvresize /dev/sda2 || true
-
-          if pvdisplay | grep -q "Free PE"; then
-            echo "Extending LVM and XFS filesystem" | logger -t cloud-init-custom
-            # Extend the logical volume
-            lvextend -l +100%FREE /dev/system/root || true
-            # Grow the XFS filesystem
-            xfs_growfs / || true
-          else
-            echo "No free space detected after PV resize" | logger -t cloud-init-custom
-          fi
+        # Handle LVM growth after partition expansion
+        - pvresize /dev/sda2 || true
+        - lvextend -l +100%FREE /dev/system/root || true
+        - xfs_growfs / || true
 
 - name: Ensure cloud-init services are enabled
   service:
