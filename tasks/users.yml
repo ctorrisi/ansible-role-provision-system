@@ -8,6 +8,6 @@
 - name: Set up admin ssh key for provisioning
   ansible.posix.authorized_key:
     user: admin
-    key: "{{ provision_ssh_key_base64 | b64decode }}"
+    key: "{{ provision_ssh_key }}"
     state: present
     exclusive: True
