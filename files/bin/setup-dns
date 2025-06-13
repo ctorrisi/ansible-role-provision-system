@@ -8,7 +8,7 @@ DOCKER_DAEMON_JSON="/etc/docker/daemon.json"
 
 log() {
     echo "$1" | logger -t "$LOG_TAG"
-    echo "[$(date)] $1"
+    echo "[$(date)] $1" >&2  # Send to stderr instead of stdout
 }
 
 # Get Docker bridge IP from daemon.json
@@ -58,7 +58,7 @@ EOF
 
     # Configure NetworkManager to use our local DNS
     if systemctl is-active --quiet NetworkManager; then
-        nmcli general reload dns
+        nmcli general reload dns-rc
     fi
 }
 
@@ -86,7 +86,7 @@ setup_user_dns() {
 
     # Configure NetworkManager to use our local DNS
     if systemctl is-active --quiet NetworkManager; then
-        nmcli general reload dns
+        nmcli general reload dns-rc
     fi
 }
 
