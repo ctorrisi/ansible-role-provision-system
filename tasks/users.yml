@@ -4,10 +4,3 @@
     content: 'admin ALL=(ALL:ALL) NOPASSWD:ALL'
     dest: /etc/sudoers.d/admin
     mode: 0400
-
-- name: Set up admin ssh key for provisioning
-  ansible.posix.authorized_key:
-    user: admin
-    key: "{{ provision_ssh_key }}"
-    state: present
-    exclusive: True
