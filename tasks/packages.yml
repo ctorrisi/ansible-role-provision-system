@@ -6,7 +6,6 @@
       - kernel-longterm
       - cloud-init
       - growpart
-      - conntrack-tools
 
       # Container and DNS services
       - docker
