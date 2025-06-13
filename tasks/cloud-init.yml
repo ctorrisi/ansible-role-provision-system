@@ -34,7 +34,7 @@
       # Disk growth
       growpart:
         mode: auto
-        devices: ['/dev/sda']
+        devices: ['/']
         ignore_growroot_disabled: false
 
       # NTP configuration
@@ -93,7 +93,7 @@
         - /usr/local/bin/setup-dns
         - systemctl restart nftables-firewall || true
         - systemctl restart docker || true
-        # Handle LVM growth after partition expansion
-        - pvresize /dev/sda2 || true
-        - lvextend -l +100%FREE /dev/system/root || true
-        - xfs_growfs / || true
+        - |
+          for pv in $(pvs --noheadings -o pv_name); do pvresize "$pv" || true; done
+          lvextend -l +100%FREE /dev/system/root || true
+          xfs_growfs / || true
