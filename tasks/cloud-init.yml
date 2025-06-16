@@ -7,7 +7,6 @@
     group: root
     mode: "{{ item.mode }}"
   loop:
-    - { src: "setup-virt-drivers", dest: "/usr/local/bin/setup-virt-drivers", mode: "0755" }
     - { src: "setup-dns", dest: "/usr/local/bin/setup-dns", mode: "0755" }
 
 - name: Configure streamlined cloud-init configuration
@@ -26,6 +25,7 @@
 
       # Network configuration using NetworkManager
       network:
+        version: 2
         renderers: ['NetworkManager']
       
       # Let our script handle DNS
@@ -83,10 +83,6 @@
           sudo: ["ALL=(ALL) NOPASSWD:ALL"]
           shell: /bin/bash
 
-      # Custom initialization
-      bootcmd:
-        - [/usr/local/bin/setup-virt-drivers]
-      
       runcmd:
         - systemctl daemon-reload
         - sleep 2
