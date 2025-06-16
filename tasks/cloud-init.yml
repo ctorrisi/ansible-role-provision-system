@@ -71,10 +71,12 @@
           sudo: ["ALL=(ALL) NOPASSWD:ALL"]
           shell: /bin/bash
 
+      bootcmd:
+        - [/usr/local/bin/resize-lvm-root]
+
       runcmd:
         - systemctl daemon-reload
         - sleep 2
         - /usr/local/bin/setup-dns || true
         - systemctl restart nftables-firewall || true
         - systemctl restart docker || true
-        - /usr/local/bin/resize-lvm-root || true
