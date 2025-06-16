@@ -1,0 +1,86 @@
+#!/bin/bash
+set -e
+
+echo "=== LVM Root Disk Resize ==="
+
+# Get root LVM device info
+ROOT_DEVICE=$(findmnt -n -o SOURCE /)
+[[ $ROOT_DEVICE == /dev/mapper/* ]] || { echo "ERROR: Root is not on LVM"; exit 1; }
+
+VG_NAME=${ROOT_DEVICE#/dev/mapper/}
+VG_NAME=${VG_NAME%-*}
+
+PV_DEVICE=$(vgs --noheadings -o pv_name "$VG_NAME" | tr -d ' ')
+[[ $PV_DEVICE =~ ^(/dev/[a-z]+)([0-9]+)$ ]] || { echo "ERROR: Cannot parse device info"; exit 1; }
+
+DISK_DEVICE=${BASH_REMATCH[1]}
+PARTITION_NUM=${BASH_REMATCH[2]}
+
+# Check current sizes
+DISK_SIZE_GB=$(lsblk -bno SIZE "$DISK_DEVICE" | awk '{print int($1/1024/1024/1024)}')
+PART_SIZE_GB=$(lsblk -bno SIZE "$PV_DEVICE" | awk '{print int($1/1024/1024/1024)}')
+ROOT_SIZE_GB=$(df -BG / | awk 'NR==2 {print int($2)}')
+
+echo "Detected: $ROOT_DEVICE on $PV_DEVICE (${DISK_SIZE_GB}GB disk, ${ROOT_SIZE_GB}GB root)"
+
+# Check if resize is needed
+if [ $((PART_SIZE_GB + 1)) -ge "$DISK_SIZE_GB" ]; then
+    echo "Status: No resize needed - partition already uses available space"
+    exit 0
+fi
+
+echo "Action: Expanding root from ${ROOT_SIZE_GB}GB to ~$((DISK_SIZE_GB - 2))GB"
+
+# Resize chain
+if growpart "$DISK_DEVICE" "$PARTITION_NUM" 2>/dev/null; then
+    echo "Step 1/4: [SUCCESS] Partition expanded"
+else
+    echo "Step 1/4: [SKIPPED] Partition already correct size"
+fi
+
+if pvresize "$PV_DEVICE" 2>/dev/null; then
+    echo "Step 2/4: [SUCCESS] Physical volume resized"
+else
+    echo "Step 2/4: [SKIPPED] PV already correct size"
+fi
+
+FREE_SPACE=$(vgs --noheadings --units b -o vg_free "$VG_NAME" | tr -d ' B')
+if [ "$FREE_SPACE" -gt 10485760 ]; then
+    FREE_GB=$((FREE_SPACE / 1024 / 1024 / 1024))
+
+    if lvextend -l +100%FREE "$ROOT_DEVICE"; then
+        echo "Step 3/4: [SUCCESS] Logical volume extended (+${FREE_GB}GB)"
+    else
+        echo "Step 3/4: [FAILED] Could not extend logical volume"
+        exit 1
+    fi
+
+    FS_TYPE=$(lsblk -no FSTYPE "$ROOT_DEVICE")
+    case $FS_TYPE in
+        ext4|ext3|ext2)
+            if resize2fs "$ROOT_DEVICE"; then
+                echo "Step 4/4: [SUCCESS] ext filesystem resized"
+            else
+                echo "Step 4/4: [FAILED] ext filesystem resize failed"
+                exit 1
+            fi
+            ;;
+        xfs)
+            if xfs_growfs /; then
+                echo "Step 4/4: [SUCCESS] XFS filesystem resized"
+            else
+                echo "Step 4/4: [FAILED] XFS filesystem resize failed"
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Step 4/4: [ERROR] Unsupported filesystem: $FS_TYPE"
+            exit 1
+            ;;
+    esac
+
+    NEW_ROOT_SIZE_GB=$(df -BG / | awk 'NR==2 {print int($2)}')
+    echo "Result: [SUCCESS] Root filesystem resized from ${ROOT_SIZE_GB}GB to ${NEW_ROOT_SIZE_GB}GB"
+else
+    echo "Step 3/4: [SKIPPED] No free space available after PV resize"
+fi

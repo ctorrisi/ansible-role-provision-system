@@ -7,6 +7,7 @@
     group: root
     mode: "{{ item.mode }}"
   loop:
+    - { src: "resize-lvm-root", dest: "/usr/local/bin/resize-lvm-root", mode: "0755" }
     - { src: "setup-dns", dest: "/usr/local/bin/setup-dns", mode: "0755" }
 
 - name: Configure streamlined cloud-init configuration
@@ -26,12 +27,6 @@
       # Let our script handle DNS
       manage_resolv_conf: false
 
-      # Disk growth
-      growpart:
-        mode: auto
-        devices: ['/']
-        ignore_growroot_disabled: false
-
       # NTP configuration
       ntp:
         enabled: true
@@ -45,8 +40,6 @@
        - seed_random
        - bootcmd
        - write-files
-       - growpart
-       - resizefs
        - disk_setup
        - mounts
        - set_hostname
@@ -84,7 +77,4 @@
         - /usr/local/bin/setup-dns
         - systemctl restart nftables-firewall || true
         - systemctl restart docker || true
-        - |
-          for pv in $(pvs --noheadings -o pv_name); do pvresize "$pv" || true; done
-          lvextend -l +100%FREE /dev/system/root || true
-          xfs_growfs / || true
+        - /usr/local/bin/resize-lvm-root
