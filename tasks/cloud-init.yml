@@ -74,7 +74,7 @@
       runcmd:
         - systemctl daemon-reload
         - sleep 2
-        - /usr/local/bin/setup-dns
+        - /usr/local/bin/setup-dns || true
         - systemctl restart nftables-firewall || true
         - systemctl restart docker || true
-        - /usr/local/bin/resize-lvm-root
+        - /usr/local/bin/resize-lvm-root || true

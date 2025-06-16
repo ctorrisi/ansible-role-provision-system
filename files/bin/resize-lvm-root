@@ -16,20 +16,29 @@ PV_DEVICE=$(vgs --noheadings -o pv_name "$VG_NAME" | tr -d ' ')
 DISK_DEVICE=${BASH_REMATCH[1]}
 PARTITION_NUM=${BASH_REMATCH[2]}
 
-# Check current sizes
-DISK_SIZE_GB=$(lsblk -bno SIZE "$DISK_DEVICE" | awk '{print int($1/1024/1024/1024)}')
-PART_SIZE_GB=$(lsblk -bno SIZE "$PV_DEVICE" | awk '{print int($1/1024/1024/1024)}')
-ROOT_SIZE_GB=$(df -BG / | awk 'NR==2 {print int($2)}')
+# Check current sizes - more robust parsing
+DISK_SIZE_GB=$(lsblk -bno SIZE "$DISK_DEVICE" 2>/dev/null | tr -d '\n' | awk '{print int($1/1024/1024/1024)}')
+PART_SIZE_GB=$(lsblk -bno SIZE "$PV_DEVICE" 2>/dev/null | tr -d '\n' | awk '{print int($1/1024/1024/1024)}')
+ROOT_SIZE_GB=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,"",$2); print int($2)}')
+
+# Fallback if lsblk parsing fails
+if [ -z "$DISK_SIZE_GB" ] || [ "$DISK_SIZE_GB" -eq 0 ]; then
+    DISK_SIZE_GB=$(blockdev --getsize64 "$DISK_DEVICE" 2>/dev/null | awk '{print int($1/1024/1024/1024)}')
+fi
+if [ -z "$PART_SIZE_GB" ] || [ "$PART_SIZE_GB" -eq 0 ]; then
+    PART_SIZE_GB=$(blockdev --getsize64 "$PV_DEVICE" 2>/dev/null | awk '{print int($1/1024/1024/1024)}')
+fi
 
 echo "Detected: $ROOT_DEVICE on $PV_DEVICE (${DISK_SIZE_GB}GB disk, ${ROOT_SIZE_GB}GB root)"
 
 # Check if resize is needed
-if [ $((PART_SIZE_GB + 1)) -ge "$DISK_SIZE_GB" ]; then
+if [ "$PART_SIZE_GB" -ge "$((DISK_SIZE_GB - 1))" ]; then
     echo "Status: No resize needed - partition already uses available space"
     exit 0
 fi
 
-echo "Action: Expanding root from ${ROOT_SIZE_GB}GB to ~$((DISK_SIZE_GB - 2))GB"
+TARGET_SIZE=$((DISK_SIZE_GB - 2))
+echo "Action: Expanding root from ${ROOT_SIZE_GB}GB to ~${TARGET_SIZE}GB"
 
 # Resize chain
 if growpart "$DISK_DEVICE" "$PARTITION_NUM" 2>/dev/null; then
