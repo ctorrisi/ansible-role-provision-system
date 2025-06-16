@@ -23,14 +23,9 @@
       # Preserve existing configurations
       preserve_sources_list: true
 
-      # Network configuration using NetworkManager
-      network:
-        version: 2
-        renderers: ['NetworkManager']
-      
       # Let our script handle DNS
       manage_resolv_conf: false
-      
+
       # Disk growth
       growpart:
         mode: auto
