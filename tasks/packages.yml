@@ -42,3 +42,6 @@
     name:
       - kernel-default
     state: absent
+
+- name: Reboot the machine
+  reboot:
