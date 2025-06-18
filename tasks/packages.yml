@@ -6,6 +6,7 @@
       - kernel-longterm
       - cloud-init
       - growpart
+      - python3-rpm
 
       # Container and DNS services
       - docker
@@ -30,16 +31,10 @@
       # KVM/QEMU guest tools
       - qemu-guest-agent
 
-      # Hyper-V guest tools
-#      - hyper-v
 
       # Xen guest tools
       - xen-tools
 
-      # Google Cloud guest tools
-#      - google-guest-agent
-#      - google-guest-oslogin
-#      - google-guest-configs
     state: present
 
 - name: Remove kernel-default
