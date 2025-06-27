@@ -1,0 +1,15 @@
+---
+- name: Install base system packages
+  package:
+    name:
+      - kernel-longterm
+    state: present
+
+- name: Remove kernel-default
+  package:
+    name:
+      - kernel-default
+    state: absent
+
+- name: Reboot the machine
+  reboot:

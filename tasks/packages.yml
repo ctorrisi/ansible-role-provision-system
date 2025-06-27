@@ -3,7 +3,6 @@
   package:
     name:
       # Core system packages
-      - kernel-longterm
       - cloud-init
       - growpart
       - python3-rpm
@@ -19,7 +18,6 @@
       - jq
       - wget
       - ca-certificates
-
     state: present
 
 - name: Install virtualization guest tools and drivers
@@ -31,17 +29,7 @@
       # KVM/QEMU guest tools
       - qemu-guest-agent
 
-
       # Xen guest tools
       - xen-tools
 
     state: present
-
-- name: Remove kernel-default
-  package:
-    name:
-      - kernel-default
-    state: absent
-
-- name: Reboot the machine
-  reboot:

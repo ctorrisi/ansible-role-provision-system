@@ -2,6 +2,10 @@
 - name: Gather service facts
   service_facts:
 
+- name: Tumbleweed specific tasks
+  include_tasks: tumbleweed.yml
+  when: ansible_distribution == 'openSUSE Tumbleweed'
+
 - name: Install base packages
   include_tasks: packages.yml
 
