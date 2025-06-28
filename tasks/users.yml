@@ -1,6 +1,0 @@
----
-- name: Add admin user to sudoers (cloud-init handles user creation and SSH keys)
-  copy:
-    content: 'admin ALL=(ALL:ALL) NOPASSWD:ALL'
-    dest: /etc/sudoers.d/admin
-    mode: 0400

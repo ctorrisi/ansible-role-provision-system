@@ -21,9 +21,6 @@
 - name: Configure Docker
   include_tasks: docker.yml
 
-- name: Configure users and security
-  include_tasks: users.yml
-
 - name: Configure system tuning
   include_tasks: system-tuning.yml
 
