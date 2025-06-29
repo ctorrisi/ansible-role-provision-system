@@ -6,6 +6,10 @@
   include_tasks: tumbleweed.yml
   when: ansible_distribution == 'openSUSE Tumbleweed'
 
+- name: Leap specific tasks
+  include_tasks: leap.yml
+  when: ansible_distribution == 'openSUSE Leap'
+
 - name: Install base packages
   include_tasks: packages.yml
 
