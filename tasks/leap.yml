@@ -1,5 +1,0 @@
----
-- name: Install python3-PyYAML (required for cloud-init)
-  package:
-    name: python3-PyYAML
-    state: present
