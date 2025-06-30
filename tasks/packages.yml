@@ -4,6 +4,7 @@
     name:
       # Core system packages
       - cloud-init
+      - growpart
       - python3-rpm
 
       # Container and DNS services

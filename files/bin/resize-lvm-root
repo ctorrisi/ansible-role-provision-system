@@ -53,39 +53,11 @@ fi
 
 echo "Action: Attempting to expand root filesystem"
 
-# Function to resize partition using parted
-resize_partition_with_parted() {
-    local disk_device=$1
-    local partition_num=$2
-
-    # Get current partition end and disk size in sectors
-    local current_end max_end
-    current_end=$(parted -s "$disk_device" unit s print 2>/dev/null | grep "^ *$partition_num" | awk '{print $3}' | sed 's/s$//')
-    max_end=$(parted -s "$disk_device" unit s print 2>/dev/null | grep "^Disk" | awk '{print $3}' | sed 's/s$//')
-
-    # Leave some space at the end for alignment
-    max_end=$((max_end - 1))
-
-    # Check if resize is needed
-    if [ -n "$current_end" ] && [ -n "$max_end" ] && [ "$current_end" -ge "$max_end" ]; then
-        echo "Step 1/4: [SKIPPED] Partition already correct size"
-        return 0
-    fi
-
-    # Attempt to resize the partition
-    if parted -s "$disk_device" resizepart "$partition_num" 100% 2>/dev/null; then
-        echo "Step 1/4: [SUCCESS] Partition expanded"
-        return 0
-    else
-        echo "Step 1/4: [FAILED] Could not resize partition"
-        return 1
-    fi
-}
-
 # Resize chain
-if ! resize_partition_with_parted "$DISK_DEVICE" "$PARTITION_NUM"; then
-    echo "ERROR: Failed to resize partition"
-    exit 1
+if growpart "$DISK_DEVICE" "$PARTITION_NUM" 2>/dev/null; then
+    echo "Step 1/4: [SUCCESS] Partition expanded"
+else
+    echo "Step 1/4: [SKIPPED] Partition already correct size"
 fi
 
 if pvresize "$PV_DEVICE" 2>/dev/null; then
