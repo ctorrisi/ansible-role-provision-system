@@ -1,4 +1,13 @@
 ---
+- name: Remove CD/DVD repos
+  shell: |
+    ids=$(zypper lr -d | awk '$0 ~ /(cd|dvd):\/\// {print $1}')
+    if [ -n "$ids" ]; then
+      zypper rr $ids
+    else
+      echo "No CD/DVD repos found"
+    fi
+
 - name: Install base system packages
   zypper:
     name:
