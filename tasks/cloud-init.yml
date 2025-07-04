@@ -15,26 +15,15 @@
     dest: /etc/cloud/cloud.cfg
     mode: 0644
     content: |
-      # Focused datasource configuration for enterprise deployment
       datasource_list: [
         NoCloud, ConfigDrive, OpenStack, Azure, GCE, Ec2, VMware, 
         OVF, MAAS, CloudStack, Hetzner, Oracle, None
       ]
 
-      # Preserve existing configurations
       preserve_sources_list: true
 
-      # Let our script handle DNS
       manage_resolv_conf: false
 
-      # NTP configuration
-      ntp:
-        enabled: true
-        ntp_client: chrony
-        config:
-          confpath: /etc/chrony.d/pool.conf
-
-      # Core initialization modules
       cloud_init_modules:
        - migrator
        - seed_random
@@ -48,14 +37,9 @@
        - users-groups
        - ssh
 
-      # Configuration modules
       cloud_config_modules:
-       - locale
-       - ntp
-       - timezone
        - runcmd
 
-      # Final modules - minimal set for completion and debugging
       cloud_final_modules:
        - final-message
        - power-state-change

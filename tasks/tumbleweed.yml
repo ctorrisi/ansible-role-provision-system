@@ -14,14 +14,13 @@
   loop: "{{ tumbleweed_repos }}"
 
 - name: Clean zypper cache
-  shell: zypper clean --all
+  shell: zypper clean --all && zypper --non-interactive refresh
 
 - name: Install kernel-longterm
   zypper:
     name:
       - kernel-longterm
     state: present
-    update_cache: true
   register: install_kernel
 
 - name: Remove kernel-default
