@@ -1,12 +1,20 @@
 ---
-- name: Remove CD/DVD repos
-  shell: |
-    ids=$(zypper lr --uri | awk -F'|' '/(cd|dvd):/ {print $1}' | xargs)
-    if [ -n "$ids" ]; then
-      zypper --non-interactive removerepo $ids
-    else
-      echo "No CD/DVD repos found"
-    fi
+- name: Clear repository configuration
+  shell: rm -f /etc/zypp/repos.d/*.repo
+  ignore_errors: true
+
+- name: Add Tumbleweed repositories
+  zypper_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    repo: "{{ item.url }}"
+    priority: "{{ item.priority }}"
+    auto_import_keys: yes
+    state: present
+  loop: "{{ tumbleweed_repos }}"
+
+- name: Clean cache and refresh repositories
+  shell: zypper clean --all && zypper --non-interactive refresh
 
 - name: Install base system packages
   zypper:

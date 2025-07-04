@@ -1,4 +1,21 @@
 ---
+tumbleweed_repos:
+  - name: "repo-oss"
+    description: "openSUSE-Tumbleweed-Oss"
+    url: "https://download.opensuse.org/tumbleweed/repo/oss/"
+    priority: 99
+  - name: "repo-non-oss"
+    description: "openSUSE-Tumbleweed-Non-Oss"
+    url: "https://download.opensuse.org/tumbleweed/repo/non-oss/"
+    priority: 99
+  - name: "repo-update"
+    description: "openSUSE-Tumbleweed-Update"
+    url: "https://download.opensuse.org/update/tumbleweed/"
+    priority: 99
+  - name: "repo-security"
+    description: "openSUSE-Tumbleweed-Security"
+    url: "https://download.opensuse.org/repositories/security/openSUSE_Tumbleweed/"
+    priority: 99
 cpu_architecture_mappings:
   x86_64: amd64
   aarch64: arm64
