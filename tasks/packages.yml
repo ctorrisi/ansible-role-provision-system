@@ -37,7 +37,7 @@
 
 - name: Install HashiCorp Services
   include_tasks: install_hashicorp_service.yml
-  loop: "{{ services }}"
+  loop: "{{ hashicorp_services }}"
   loop_control:
     loop_var: item
 

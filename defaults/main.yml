@@ -19,7 +19,7 @@ tumbleweed_repos:
 cpu_architecture_mappings:
   x86_64: amd64
   aarch64: arm64
-services:
+hashicorp_services:
   - name: consul
     version: "1.21.2"
     command_args: "agent -config-file=/etc/consul/consul.json"
