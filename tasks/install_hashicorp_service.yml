@@ -1,0 +1,34 @@
+---
+- name: Create installation directory for {{ item.name }}
+  file:
+    path: "/usr/local/{{ item.name }}/{{ item.version }}"
+    state: directory
+    mode: '0755'
+
+- name: Download {{ item.name }} binary
+  get_url:
+    url: "https://releases.hashicorp.com/{{ item.name }}/{{ item.version }}/{{ item.name }}_{{ item.version }}_linux_{{ cpu_architecture_mappings[ansible_architecture] }}.zip"
+    dest: "/usr/local/{{ item.name }}_{{ item.version }}.zip"
+    mode: '0644'
+  register: download_result
+
+- name: Unarchive {{ item.name }} binary
+  unarchive:
+    src: "/usr/local/{{ item.name }}_{{ item.version }}.zip"
+    dest: "/usr/local/{{ item.name }}/{{ item.version }}"
+    remote_src: yes
+    mode: '0755'
+  when: download_result.changed
+
+- name: Create symlink for {{ item.name }}
+  file:
+    src: "/usr/local/{{ item.name }}/{{ item.version }}/{{ item.name }}"
+    dest: "/usr/local/bin/{{ item.name }}"
+    state: link
+    force: yes
+
+- name: Deploy systemd unit file for {{ item.name }}
+  template:
+    src: "./templates/systemd-service.j2"
+    dest: "/etc/systemd/system/{{ item.name }}.service"
+    mode: '0644'

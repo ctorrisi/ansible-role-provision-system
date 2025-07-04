@@ -11,6 +11,7 @@
       - docker
       - dnscrypt-proxy
       - dnsmasq
+      - crowdsec-firewall-bouncer
 
       # Essential utilities for scripts
       - unzip
@@ -33,3 +34,13 @@
       - xen-tools
 
     state: present
+
+- name: Install HashiCorp Services
+  include_tasks: install_hashicorp_service.yml
+  loop: "{{ services }}"
+  loop_control:
+    loop_var: item
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
