@@ -1,9 +1,10 @@
 ---
 - name: Remove CD/DVD repos
   shell: |
-    ids=$(zypper lr -d | awk -F'|' '$5 ~ /cd|dvd/ {print $1}' | tr -d ' ')
+    ids=$(zypper lr --uri | awk -F'|' '/(cd|dvd|iso):/ {print $1}' | xargs)
     if [ -n "$ids" ]; then
-      zypper rr $ids
+      echo "Found media repos to remove: $ids"
+      zypper --non-interactive removerepo $ids
     else
       echo "No CD/DVD repos found"
     fi
