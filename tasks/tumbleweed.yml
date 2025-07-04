@@ -35,7 +35,6 @@
   zypper:
     name: '*'
     state: dist-upgrade
-    allow_vendor_change: true
     update_cache: true
   register: upgrade_result
   failed_when: upgrade_result.rc not in [0, 107]
