@@ -13,14 +13,15 @@
     state: present
   loop: "{{ tumbleweed_repos }}"
 
-- name: Clean cache and refresh repositories
-  shell: zypper clean --all && zypper --non-interactive refresh
+- name: Clean zypper cache
+  shell: zypper clean --all
 
 - name: Install kernel-longterm
   zypper:
     name:
       - kernel-longterm
     state: present
+    update_cache: true
   register: install_kernel
 
 - name: Remove kernel-default
@@ -30,6 +31,15 @@
     state: absent
   register: remove_kernel
 
+- name: Perform dist-upgrade
+  zypper:
+    name: '*'
+    state: dist-upgrade
+    allow_vendor_change: true
+    update_cache: true
+  register: upgrade_result
+  failed_when: upgrade_result.rc not in [0, 107]
+
 - name: Reboot the machine
   reboot:
-  when: install_kernel.changed or remove_kernel.changed
+  when: install_kernel.changed or remove_kernel.changed or upgrade_result.rc == 107
