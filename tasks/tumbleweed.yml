@@ -14,12 +14,15 @@
       - kernel-longterm
     state: present
     update_cache: yes
+    register: install_kernel
 
 - name: Remove kernel-default
   zypper:
     name:
       - kernel-default
     state: absent
+    register: remove_kernel
 
 - name: Reboot the machine
   reboot:
+  when: install_kernel.changed or remove_kernel.changed
