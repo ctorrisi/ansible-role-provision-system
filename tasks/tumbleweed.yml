@@ -16,12 +16,11 @@
 - name: Clean cache and refresh repositories
   shell: zypper clean --all && zypper --non-interactive refresh
 
-- name: Install base system packages
+- name: Install kernel-longterm
   zypper:
     name:
       - kernel-longterm
     state: present
-    update_cache: yes
   register: install_kernel
 
 - name: Remove kernel-default
