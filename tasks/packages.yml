@@ -11,7 +11,6 @@
       - docker
       - dnscrypt-proxy
       - dnsmasq
-      - crowdsec-firewall-bouncer
 
       # Essential utilities for scripts
       - unzip
