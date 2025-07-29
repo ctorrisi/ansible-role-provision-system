@@ -3,20 +3,31 @@ set -e
 
 echo "=== LVM Root Disk Resize ==="
 
-# Get root LVM device info
 ROOT_DEVICE=$(findmnt -n -o SOURCE /)
 [[ $ROOT_DEVICE == /dev/mapper/* ]] || { echo "ERROR: Root is not on LVM"; exit 1; }
 
-VG_NAME=${ROOT_DEVICE#/dev/mapper/}
-VG_NAME=${VG_NAME%-*}
+LV_INFO=$(lvs --noheadings -o vg_name,lv_name "$ROOT_DEVICE" 2>/dev/null)
+if [ -z "$LV_INFO" ]; then
+    echo "ERROR: Cannot get logical volume information for $ROOT_DEVICE"
+    exit 1
+fi
+
+VG_NAME=$(echo "$LV_INFO" | awk '{print $1}')
+LV_NAME=$(echo "$LV_INFO" | awk '{print $2}')
+
+echo "Detected LV: $LV_NAME in VG: $VG_NAME"
 
 PV_DEVICE=$(vgs --noheadings -o pv_name "$VG_NAME" | tr -d ' ')
-[[ $PV_DEVICE =~ ^(/dev/[a-z]+)([0-9]+)$ ]] || { echo "ERROR: Cannot parse device info"; exit 1; }
+if [ -z "$PV_DEVICE" ]; then
+    echo "ERROR: Cannot find physical volume for volume group $VG_NAME"
+    exit 1
+fi
+
+[[ $PV_DEVICE =~ ^(/dev/[a-z]+)([0-9]+)$ ]] || { echo "ERROR: Cannot parse device info from $PV_DEVICE"; exit 1; }
 
 DISK_DEVICE=${BASH_REMATCH[1]}
 PARTITION_NUM=${BASH_REMATCH[2]}
 
-# Check current sizes - simplified and robust approach
 get_size_gb() {
     local device=$1
     local size_bytes
@@ -45,7 +56,6 @@ fi
 
 echo "Detected: $ROOT_DEVICE on $PV_DEVICE (${DISK_SIZE_GB}GB disk, ${ROOT_SIZE_GB}GB root)"
 
-# Check if resize is needed - only skip if we're confident sizes are accurate
 if [ "$DISK_SIZE_GB" -ne 999 ] && [ "$PART_SIZE_GB" -ge "$((DISK_SIZE_GB - 1))" ]; then
     echo "Status: No resize needed - partition already uses available space"
     exit 0
@@ -53,7 +63,6 @@ fi
 
 echo "Action: Attempting to expand root filesystem"
 
-# Resize chain
 if growpart "$DISK_DEVICE" "$PARTITION_NUM" 2>/dev/null; then
     echo "Step 1/4: [SUCCESS] Partition expanded"
 else
