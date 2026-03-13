@@ -9,6 +9,7 @@
 
       # Container and DNS services
       - docker
+      - podman
       - dnscrypt-proxy
       - dnsmasq
 

@@ -23,6 +23,3 @@
 
 - name: Configure system tuning
   include_tasks: system-tuning.yml
-
-- name: Configure firewall
-  include_tasks: firewall.yml
