@@ -5,11 +5,11 @@
     enabled: yes
   when: "'docker.service' not in services or services['docker.service'].status != 'enabled'"
 
-- name: Enable podman service
-  service:
-    name: podman
-    enabled: yes
-  when: "'podman.service' not in services or services['podman.service'].status != 'enabled'"
+- name: Enable and start podman socket
+  systemd:
+    name: podman.socket
+    enabled: true
+    state: started
 
 - name: Create docker.service.d directory
   file:
