@@ -32,6 +32,13 @@
     enabled: yes
     daemon_reload: yes
 
+- name: Start and enable dnsmasq
+  service:
+    name: dnscrypt-proxy
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
 - name: Configure system resolver
   copy:
     dest: /etc/resolv.conf
