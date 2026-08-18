@@ -29,6 +29,9 @@
       # DNS is owned by setup-dns + dnscrypt-proxy, not cloud-init.
       manage_resolv_conf: false
 
+      users:
+        - default
+
       cloud_init_modules:
        - seed_random
        - bootcmd
