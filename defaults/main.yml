@@ -34,8 +34,8 @@ opensuse_repo_definitions:
       priority: 99
     - name: "repo-update"
       description: "openSUSE-Slowroll-Update"
-      url: "https://download.opensuse.org/update/slowroll/"
-      priority: 99
+      url: "https://download.opensuse.org/update/slowroll/repo/oss/"
+      priority: 80
 
 # Effective repository list. Override to bypass the presets entirely.
 opensuse_repos: "{{ opensuse_repo_definitions[opensuse_distribution] }}"
