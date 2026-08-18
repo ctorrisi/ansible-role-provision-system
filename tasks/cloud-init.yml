@@ -20,11 +20,10 @@
         OVF, MAAS, CloudStack, Hetzner, Oracle, None
       ]
 
-      # Host keys are stripped from the golden image; cc_ssh regenerates them
-      # per instance. Explicit because it is the single most important setting
-      # in this file for a shared image.
       ssh_deletekeys: true
       disable_root: true
+
+      ssh_pwauth: false
 
       # DNS is owned by setup-dns + dnscrypt-proxy, not cloud-init.
       manage_resolv_conf: false
@@ -45,6 +44,7 @@
        - ssh
 
       cloud_config_modules:
+       - set_passwords
        - runcmd
 
       cloud_final_modules:
@@ -61,7 +61,7 @@
           name: core0user
           lock_passwd: true
           gecos: Cloud User
-          groups: [users, wheel, dialout, cdrom, audio, video, plugdev]
+          groups: [users, wheel]
           sudo: ["ALL=(ALL) NOPASSWD:ALL"]
           shell: /bin/bash
 
