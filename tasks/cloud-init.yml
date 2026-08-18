@@ -69,4 +69,3 @@
         - systemctl daemon-reload
         - sleep 2
         - /usr/local/bin/setup-dns || true
-        - systemctl restart nftables-firewall || true
