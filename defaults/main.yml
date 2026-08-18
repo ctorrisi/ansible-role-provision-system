@@ -1,14 +1,6 @@
 ---
-# Which openSUSE rolling distribution to track: "tumbleweed" or "slowroll".
-#
-# Slowroll is the default: it is a slower-moving rebuild of Tumbleweed with big
-# updates roughly monthly and continuous bug/security fixes in between, which
-# suits a golden image better than Tumbleweed's daily churn.
 opensuse_distribution: slowroll
 
-# Repository sets per distribution. Selected by `opensuse_distribution`; to use
-# a mirror or add repos, override `opensuse_repos` directly instead of editing
-# these presets.
 opensuse_repo_definitions:
   tumbleweed:
     - name: "repo-oss"
