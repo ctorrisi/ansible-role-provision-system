@@ -11,18 +11,3 @@
 - name: Reload sysctl configuration
   command: sysctl --system
   when: sysctl_config is changed
-
-- name: Configure xtables alternatives for iptables
-  copy:
-    dest: "/usr/share/libalternatives/{{ item }}/2.conf"
-    content: |
-      binary=/usr/sbin/xtables-nft-multi
-      group={{ item }}
-      options=KeepArgv0
-    owner: root
-    group: root
-    mode: 0644
-  with_items:
-    - iptables
-    - iptables-restore
-    - iptables-save

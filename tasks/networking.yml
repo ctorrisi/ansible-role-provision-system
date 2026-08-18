@@ -25,15 +25,6 @@
     group: root
     mode: 0644
 
-# nf_conntrack is autoloaded on demand by the nftables `ct` rules, but that
-# happens *after* systemd-sysctl runs. The net.netfilter.nf_conntrack_* keys in
-# 99-sysctl.conf do not exist until the module is loaded, so without this they
-# are silently dropped. systemd-sysctl.service orders itself After=
-# systemd-modules-load.service, which makes this the fix.
-#
-# nf_conntrack_ipv4/_ipv6 are deliberately absent: they were folded into
-# nf_conntrack in kernel 4.19 and no longer exist, so listing them only makes
-# systemd-modules-load.service log failures on every boot.
 - name: Configure netfilter modules to load at boot
   copy:
     dest: /etc/modules-load.d/nf_conntrack.conf
