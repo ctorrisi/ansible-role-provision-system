@@ -8,7 +8,6 @@
       - python3-rpm
 
       # Container and DNS services
-      - docker
       - podman
       - dnscrypt-proxy
       - dnsmasq

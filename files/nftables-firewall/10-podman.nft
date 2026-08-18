@@ -1,0 +1,6 @@
+#!/usr/sbin/nft -f
+
+add rule inet firewall input iifname "podman*" accept comment "Podman container to host traffic"
+add rule inet firewall forward iifname "podman*" oifname "podman*" accept comment "Podman inter-container traffic"
+add rule inet firewall forward oifname "podman*" ct state established,related accept comment "Return traffic to Podman containers"
+add rule inet firewall forward iifname "podman*" oifname != "podman*" accept comment "Podman containers to external networks"

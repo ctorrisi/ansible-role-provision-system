@@ -1,0 +1,99 @@
+---
+- name: Validate selected openSUSE distribution
+  assert:
+    that:
+      - opensuse_distribution in opensuse_repo_definitions
+    fail_msg: >-
+      opensuse_distribution must be one of
+      {{ opensuse_repo_definitions.keys() | list | join(', ') }},
+      got '{{ opensuse_distribution }}'
+
+- name: Report distribution selection
+  debug:
+    msg: >-
+      Running {{ ansible_distribution }}, targeting {{ opensuse_distribution }}
+      ({{ 'migration' if opensuse_distribution not in ansible_distribution | lower else 'no change' }})
+
+# openSUSE-repos ships a zypper *service* that regenerates repo files on every
+# refresh. Left in place it would re-add the distribution's own repos alongside
+# the explicit ones below, giving duplicate definitions at conflicting
+# priorities.
+- name: Find openSUSE-repos zypper services
+  find:
+    paths: /etc/zypp/services.d
+    patterns: "*.service"
+  register: zypper_services
+
+- name: Remove openSUSE-repos zypper services
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ zypper_services.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Clear repository configuration
+  shell: rm -f /etc/zypp/repos.d/*.repo
+  ignore_errors: true
+
+- name: Add {{ opensuse_distribution }} repositories
+  zypper_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    repo: "{{ item.url }}"
+    priority: "{{ item.priority }}"
+    auto_import_keys: yes
+    state: present
+  loop: "{{ opensuse_repos }}"
+  loop_control:
+    label: "{{ item.name }} -> {{ item.url }}"
+
+- name: Clean zypper cache
+  shell: zypper clean --all && zypper --non-interactive refresh
+
+- name: Install kernel-longterm
+  zypper:
+    name:
+      - kernel-longterm
+    state: present
+  register: install_kernel
+
+- name: Remove kernel-default
+  zypper:
+    name:
+      - kernel-default
+    state: absent
+  register: remove_kernel
+
+# Not the zypper module: switching Tumbleweed -> Slowroll moves packages
+# *backwards*, and the module exposes no --allow-downgrade for dist-upgrade.
+# These are the same flags opensuse-migration-tool uses for this transition.
+- name: Perform dist-upgrade
+  command: >-
+    zypper --non-interactive --gpg-auto-import-keys dup
+    --force-resolution
+    --allow-vendor-change
+    --allow-downgrade
+    --download in-advance
+  register: upgrade_result
+  changed_when: upgrade_result.rc in [0, 107]
+  failed_when: upgrade_result.rc not in [0, 107]
+
+- name: Reboot the machine
+  reboot:
+  when: install_kernel.changed or remove_kernel.changed or upgrade_result.rc == 107
+
+- name: Verify resulting distribution
+  command: cat /etc/os-release
+  register: os_release_after
+  changed_when: false
+
+- name: Assert the system is on the requested distribution
+  assert:
+    that:
+      - >-
+        (opensuse_distribution == 'slowroll') ==
+        ('Tumbleweed-Slowroll' in os_release_after.stdout)
+    fail_msg: >-
+      Requested {{ opensuse_distribution }} but /etc/os-release does not match.
+      The dist-upgrade did not complete the migration.

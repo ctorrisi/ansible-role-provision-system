@@ -2,9 +2,11 @@
 - name: Gather service facts
   service_facts:
 
-- name: Tumbleweed specific tasks
-  include_tasks: tumbleweed.yml
-  when: ansible_distribution == 'openSUSE Tumbleweed'
+# Matches both "openSUSE Tumbleweed" and "openSUSE Tumbleweed-Slowroll", so the
+# block still runs once a host has been migrated to Slowroll.
+- name: openSUSE rolling-release specific tasks
+  include_tasks: opensuse.yml
+  when: ansible_distribution is search('openSUSE Tumbleweed')
 
 - name: Install base packages
   include_tasks: packages.yml
@@ -18,8 +20,8 @@
 - name: Configure networking
   include_tasks: networking.yml
 
-- name: Configure Docker
-  include_tasks: docker.yml
+- name: Configure Podman
+  include_tasks: podman.yml
 
 - name: Configure system tuning
   include_tasks: system-tuning.yml

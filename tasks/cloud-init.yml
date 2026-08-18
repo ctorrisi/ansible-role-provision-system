@@ -12,20 +12,24 @@
 
 - name: Configure streamlined cloud-init configuration
   copy:
-    dest: /etc/cloud/cloud.cfg
+    dest: /etc/cloud/cloud.cfg.d/99-core0.cfg
     mode: 0644
     content: |
       datasource_list: [
-        NoCloud, ConfigDrive, OpenStack, Azure, GCE, Ec2, VMware, 
+        NoCloud, ConfigDrive, OpenStack, Azure, GCE, Ec2, VMware,
         OVF, MAAS, CloudStack, Hetzner, Oracle, None
       ]
 
-      preserve_sources_list: true
+      # Host keys are stripped from the golden image; cc_ssh regenerates them
+      # per instance. Explicit because it is the single most important setting
+      # in this file for a shared image.
+      ssh_deletekeys: true
+      disable_root: true
 
+      # DNS is owned by setup-dns + dnscrypt-proxy, not cloud-init.
       manage_resolv_conf: false
 
       cloud_init_modules:
-       - migrator
        - seed_random
        - bootcmd
        - write-files
@@ -41,6 +45,9 @@
        - runcmd
 
       cloud_final_modules:
+       - scripts-user
+       - ssh-authkey-fingerprints
+       - keys-to-console
        - final-message
        - power-state-change
 
@@ -48,7 +55,7 @@
         distro: opensuse
         ssh_svcname: sshd
         default_user:
-          name: admin
+          name: core0user
           lock_passwd: true
           gecos: Cloud User
           groups: [users, wheel, dialout, cdrom, audio, video, plugdev]
@@ -63,4 +70,3 @@
         - sleep 2
         - /usr/local/bin/setup-dns || true
         - systemctl restart nftables-firewall || true
-        - systemctl restart docker || true

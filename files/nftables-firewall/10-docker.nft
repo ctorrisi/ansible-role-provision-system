@@ -1,6 +1,0 @@
-#!/usr/sbin/nft -f
-
-add rule inet firewall input iifname "docker*" accept comment "Docker container to host traffic"
-add rule inet firewall forward iifname "docker*" oifname "docker*" accept comment "Docker inter-container traffic"
-add rule inet firewall forward oifname "docker*" ct state established,related accept comment "Return traffic to Docker containers"
-add rule inet firewall forward iifname "docker*" oifname != "docker*" accept comment "Docker containers to external networks"

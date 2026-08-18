@@ -1,59 +1,21 @@
 #!/bin/bash
 
 # DNS Setup Script - Simple DNS configuration for cloud-init
+#
+# dnsmasq listens on loopback only and forwards to dnscrypt-proxy on port 5300,
+# unless the instance supplies its own DNS servers via cloud-init metadata.
+# Container DNS is not handled here: podman resolves via aardvark-dns on its own
+# networks, and host-networked containers use the host resolver directly.
 
 LOG_TAG="dns-setup"
 DNSMASQ_CONFIG="/etc/dnsmasq.d/10-base.conf"
-DOCKER_DAEMON_JSON="/etc/docker/daemon.json"
 
 log() {
     echo "$1" | logger -t "$LOG_TAG"
     echo "[$(date)] $1" >&2  # Send to stderr instead of stdout
 }
 
-# Get Docker bridge IP from daemon.json
-get_docker_bridge_ip() {
-    local bridge_ip="172.17.0.1"  # Default
-
-    # Wait a moment for docker-daemon.json to be written if it doesn't exist
-    if [[ ! -f "$DOCKER_DAEMON_JSON" ]]; then
-        log "Waiting for docker-daemon.json to be created..."
-        for i in {1..5}; do
-            sleep 1
-            [[ -f "$DOCKER_DAEMON_JSON" ]] && break
-        done
-    fi
-
-    if [[ -f "$DOCKER_DAEMON_JSON" ]]; then
-        # Extract bridge IP from bip setting (format: "10.0.0.1/16" -> "10.0.0.1")
-        local bip=$(jq -r '.bip // empty' "$DOCKER_DAEMON_JSON" 2>/dev/null)
-
-        if [[ -n "$bip" ]]; then
-            bridge_ip=$(echo "$bip" | cut -d'/' -f1)
-            log "Found Docker bridge IP in daemon.json: $bridge_ip"
-        else
-            log "No custom bridge IP in daemon.json, using default: $bridge_ip"
-        fi
-    else
-        log "Docker daemon.json not found, using default bridge IP: $bridge_ip"
-    fi
-
-    echo "$bridge_ip"
-}
-
-# Configure dnsmasq to use dnscrypt-proxy
-setup_dnscrypt() {
-    local docker_bridge_ip=$(get_docker_bridge_ip)
-    log "Configuring DNS with dnscrypt-proxy (Docker bridge: $docker_bridge_ip)"
-
-    cat > "$DNSMASQ_CONFIG" << EOF
-no-resolv
-server=127.0.0.1#5300
-listen-address=127.0.0.1
-listen-address=$docker_bridge_ip
-EOF
-
-    systemctl enable --now dnscrypt-proxy
+reload_resolvers() {
     systemctl restart dnsmasq
 
     # Configure NetworkManager to use our local DNS
@@ -62,17 +24,28 @@ EOF
     fi
 }
 
+# Configure dnsmasq to use dnscrypt-proxy
+setup_dnscrypt() {
+    log "Configuring DNS with dnscrypt-proxy"
+
+    cat > "$DNSMASQ_CONFIG" << EOF
+no-resolv
+server=127.0.0.1#5300
+listen-address=127.0.0.1
+EOF
+
+    systemctl enable --now dnscrypt-proxy
+    reload_resolvers
+}
+
 # Configure dnsmasq to use provided DNS servers
 setup_user_dns() {
     local dns_servers="$1"
-    local docker_bridge_ip=$(get_docker_bridge_ip)
-    log "Configuring DNS with user-provided servers: $dns_servers (Docker bridge: $docker_bridge_ip)"
+    log "Configuring DNS with user-provided servers: $dns_servers"
 
-    # Create dnsmasq config with provided servers
     {
         echo "no-resolv"
         echo "listen-address=127.0.0.1"
-        echo "listen-address=$docker_bridge_ip"
 
         # Add each provided DNS server
         for server in $dns_servers; do
@@ -82,12 +55,7 @@ setup_user_dns() {
 
     # Stop dnscrypt-proxy as we're using regular DNS
     systemctl disable --now dnscrypt-proxy 2>/dev/null || true
-    systemctl restart dnsmasq
-
-    # Configure NetworkManager to use our local DNS
-    if systemctl is-active --quiet NetworkManager; then
-        nmcli general reload dns-rc
-    fi
+    reload_resolvers
 }
 
 # Get DNS servers from cloud-init

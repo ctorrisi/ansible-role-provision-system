@@ -1,0 +1,14 @@
+---
+# Podman is socket-activated: podman.socket is what matters for API clients,
+# podman.service is started on demand from it.
+- name: Enable and start podman socket
+  systemd:
+    name: podman.socket
+    enabled: true
+    state: started
+
+- name: Enable podman service
+  service:
+    name: podman
+    enabled: yes
+  when: "'podman.service' not in services or services['podman.service'].status != 'enabled'"

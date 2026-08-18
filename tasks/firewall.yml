@@ -35,10 +35,10 @@
     group: root
     mode: 0600
 
-- name: Create Docker-specific nftables rules
+- name: Create Podman-specific nftables rules
   copy:
-    src: ../files/nftables-firewall/10-docker.nft
-    dest: /etc/nftables-firewall/rules.d/10-docker.nft
+    src: ../files/nftables-firewall/10-podman.nft
+    dest: /etc/nftables-firewall/rules.d/10-podman.nft
     owner: root
     group: root
     mode: 0600

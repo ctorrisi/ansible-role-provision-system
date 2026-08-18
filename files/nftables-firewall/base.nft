@@ -40,7 +40,7 @@ table inet firewall {
         jump nfw_fallback comment "Jump to fallback (remove this rule to harden)"
     }
 
-    # Forward chain (for Docker/containers)
+    # Forward chain (for containers)
     chain forward {
         type filter hook forward priority 0; policy drop;
         ct state {established, related} accept comment "Allow established forwarded connections"
