@@ -40,6 +40,18 @@ opensuse_repo_definitions:
 # Effective repository list. Override to bypass the presets entirely.
 opensuse_repos: "{{ opensuse_repo_definitions[opensuse_distribution] }}"
 
+guest_tools_packages:
+  kvm:
+    - qemu-guest-agent
+  vmware:
+    - open-vm-tools
+  xen:
+    - xen-tools-domU
+
+guest_tools_platforms: >-
+  {{ [target_platform] if (target_platform | default('')) in guest_tools_packages
+     else (guest_tools_packages.keys() | list) }}
+
 cpu_architecture_mappings:
   x86_64: amd64
   aarch64: arm64

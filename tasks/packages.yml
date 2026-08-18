@@ -20,19 +20,23 @@
       - ca-certificates
     state: present
 
+- name: Select hypervisor guest tools
+  set_fact:
+    guest_tools_selected: >-
+      {{ guest_tools_platforms | map('extract', guest_tools_packages)
+         | flatten | unique | list }}
+
+- name: Report guest tools selection
+  debug:
+    msg: >-
+      Guest tools for {{ guest_tools_platforms | join(', ') }}:
+      {{ guest_tools_selected | join(', ') | default('none', true) }}
+
 - name: Install virtualization guest tools and drivers
   package:
-    name:
-      # VMware guest tools
-      - open-vm-tools
-
-      # KVM/QEMU guest tools
-      - qemu-guest-agent
-
-      # Xen guest tools
-      - xen-tools
-
+    name: "{{ guest_tools_selected }}"
     state: present
+  when: guest_tools_selected | length > 0
 
 - name: Reload systemd
   systemd:
